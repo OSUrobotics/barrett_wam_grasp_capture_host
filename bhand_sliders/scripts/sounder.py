@@ -7,9 +7,7 @@ import time
 
 def sound_cb(msg):
 	duration = 1
-	freq = 200
-	os.system("say 'Hello Javier'")
-	time.sleep(2)
+	freq = 666
 	os.system("play --no-show-progress --null --channels 1 synth %s sine %f" % (duration, freq))
 
 if __name__ == "__main__":
