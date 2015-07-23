@@ -1,0 +1,6 @@
+[submodule "wam_msgs"]
+	path = wam_msgs
+	url = https://github.com/OSUrobotics/wam_msgs.git
+[submodule "wam_srvs"]
+	path = wam_srvs
+	url = https://github.com/OSUrobotics/wam_srvs.git
