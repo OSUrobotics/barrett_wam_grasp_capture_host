@@ -1,0 +1,35 @@
+## Operating the WAM arm for grasp recording study (Summer 2015)
+
+SSH Traits:
+	robot system name: WAM
+	username: robot
+	password: WAM
+
+	ssh command: "ssh wam"
+
+Required Setup:
+	run "ifconfig" and verify that your wireless connection interface (wlan0) has the ip address 192.168.109.101
+	run "sudo vim /etc/hosts" and verify that the name of your computer is in the hosts file with the above ip address (my computer is called eureka, and I know because when I log in, I get the prompt "jack@eureka:~"
+
+# Running the setup
+	Log into the wam (ssh wam) and run:
+		roscore
+
+	Log into the wam on another terminal and run:
+		roslaunch wam_node wam_node.launch
+
+	Log into a final terminal and run:
+		rosrun wam_node grasp_capture.py
+	
+
+	On the host computer, open a new terminal and run:
+		export ROS_MASTER_URI="http://WAM:11311"
+		rosrun bhand_sliders bhand_sliders.py
+
+	Also on the host computer, open the last new terminal and run:
+		export ROS_MASTER_URI="http://WAM:11311"
+		rosrun bhand_sliders sounder.py
+
+	
+	Go to the wam_node.launch terminal and follow its instructions to ininitialize the wam (it should go something like: "idle the WAM, set it in its home position, activate the WAM")
+	If the wam activates and the hand initializes, the setup procedure should be complete. Go to the grasp_replication.py terminal and follow its instructions.
