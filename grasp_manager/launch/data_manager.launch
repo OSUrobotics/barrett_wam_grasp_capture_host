@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+	<node name="grasp_capture" type="grasp_capture.py" pkg="grasp_manager" launch-prefix="gnome-terminal -e"/>
+	<node name="hand_playback" type="hand_playback.py" pkg="grasp_manager"/>
+	<node name="recorder" type="recorder.py" pkg="bag_tools" launch-prefix="gnome-terminal -e"/>
+</launch>

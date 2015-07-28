@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+	<include file="$(find grasp_manager)/launch/data_manager.launch" />
+	
+	<!-- Hand control via gui -->
+	<node name="bhand_sliders" type="bhand_sliders.py" pkg="bhand_sliders" output="screen"/>
+	
+	<!-- Sound synchronization -->
+	<node name="sounder" type="sounder.py" pkg="bhand_sliders" output="screen"/>
+</launch>

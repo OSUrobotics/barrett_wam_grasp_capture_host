@@ -6,7 +6,7 @@ import time
 
 if __name__ == "__main__":
 	print "Installing package dependencies"
-	pkgs = "sox chrony isc-dhcp-server openssh-client openssh-server"
+	pkgs = "sox chrony isc-dhcp-server openssh-client openssh-server gnome-terminal"
 	os.system("apt-get install " + pkgs)
 
 	print "Installing DHCP and chrony configuration files."
