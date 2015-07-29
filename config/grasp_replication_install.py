@@ -6,7 +6,7 @@ import time
 
 if __name__ == "__main__":
 	print "Installing package dependencies"
-	pkgs = "sox chrony isc-dhcp-server openssh-client openssh-server gnome-terminal"
+	pkgs = "sox chrony isc-dhcp-server openssh-client openssh-server gnome-terminal python-pip"
 	os.system("apt-get install " + pkgs)
 
 	print "Installing DHCP and chrony configuration files."
@@ -15,6 +15,9 @@ if __name__ == "__main__":
 		now = str(datetime.date.fromtimestamp(time.time()))
 		os.system("mv /etc/chrony/chrony.conf /etc/chrony/chrony.conf." + now)
 	
+	# Get arduino serial communcation library
+	os.system("pip install pyserial")
+
 	os.system("cp ./chrony.conf /etc/chrony/")
 	os.system("service chrony restart")
 
