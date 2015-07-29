@@ -24,14 +24,16 @@ if __name__ == "__main__":
 	# To be done later... DHCP
 #	if os.path.exists("/etc
 
-	if os.path.exists("~/.ssh"):
-		print "Detected existing ssh setup. Backing up..."
-		now = str(datetime.date.fromtimestamp(time.time()))
-		os.system("mv ~/.ssh ~/.ssh" + now)
-		print "Original ssh file renamed to .ssh" + now
+	#if os.path.exists("~/.ssh"):
+	#	print "Detected existing ssh setup. Backing up..."
+	#	now = str(datetime.date.fromtimestamp(time.time()))
+	#	os.system("mv ~/.ssh ~/.ssh" + now)
+	#	print "Original ssh file renamed to .ssh" + now
 
-	os.system("mv ./.ssh ~/")
-	os.system("service ssh restart")
+	#os.system("mv ./.ssh ~/")
+	#os.system("service ssh restart")
+
+	print "Talk to Jackson about getting the proper SSH credentials."
 
 	print "It is a good idea to check that the time on the robot is the same as the time on the client computer. user 'date -u'"
 
