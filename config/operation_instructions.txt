@@ -7,6 +7,18 @@ SSH Traits:
 
 	ssh command: "ssh wam"
 
+# Software Overview:
+	wam_node.launch:
+		The wam node controls all mechanical operations for the wam and initiates the ROS interface for control. The wam node is also responsible for wam joint recording. These trajectories are moved from the wam to the host computer between each test via SFTP
+
+	run_host.launch:
+		This is the main controlling launch file. It starts:
+			grasp_capture.py: the command and control interface. Takes user commands and implements the main workflow.
+			bhand_sliders.py: Listens to the arduino via USB for changes in the sliders and the rotating potentiometer. Converts these values to finger closures and spread angles.
+			sounder.py: Issues synchronizing sounds on the host computer
+			bag_tools: a rosbag API listening for topics in the form of strings sent to the bag_record topic.
+			sounder.py
+
 Setup for a New Computer:
 	In a terminal on your computer, run "ifconfig" and verify that your wireless network connection (wlan0) has the ip address 192.168.109.101
 
@@ -33,6 +45,5 @@ Verify Setup on a New Computer:
 	On the host computer, open a new terminal and run:
 		roslaunch grasp_manager run_host.launch
 
-	
 	Go to the wam_node.launch terminal and follow its instructions to ininitialize the wam (it should go something like: "idle the WAM, set it in its home position, activate the WAM")
 	If the wam activates and the hand initializes, the setup procedure should be complete. Go to the grasp_replication.py terminal and follow its instructions to commence testing.

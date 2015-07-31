@@ -14,7 +14,8 @@ import datetime
 import time
 import paramiko
 
-grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
+#grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
+grasp_info_dir = "/media/sonny/FA648F24648EE2AD/grasp_data"	# The fully qualified path to the grasp data
 recorder_start_topic = "start_record"
 recorder_stop_topic = "stop_record"
 cur_wam_pose = None
@@ -23,6 +24,8 @@ wam_traj_name = "wam_traj.bag"
 wam_traj_location = "/tmp/" + wam_traj_name
 wam_sftp = None
 wam_ssh = None
+kinect_topic_prefix = "/kinect2/qhd/"
+kinect_data_topics = [kinect_topic_prefix + "image_color_rect", kinect_topic_prefix + "image_depth_rect"]
 
 class PoseMoveException(Exception):
 	def __init__(self, req_pos):
@@ -89,7 +92,7 @@ class GraspData:
 				self.instance_dir = grasp_info_dir + "/bad/" + base_dir 
 	
 			if os.path.exists(self.instance_dir):
-				rospy.logerr("Grasping directory already exists. Appending time.")
+				rospy.logwarn("Grasping directory already exists. Appending time.")
 				self.instance_dir += "_" + str(int(time.time()))
 				break
 			else:
@@ -106,25 +109,22 @@ class GraspData:
 	def add_annotations(self, command_str):
 		while True:
 			cmd = raw_input(("\nAnnotation reference: \n\t"
-			"i - general point of interest\n\t"
-			"n - begin new grasp set\n\t"
+			"n - new grasp set\n\t"
 			"o - optimal grasp for grasp set\n\t"
-			"r - grasp range extreme marker\n\t"
-			"e - end grasp set \n"
+			"r - range extreme marker\n\t"
+			"s - start natural task\n\t"
 			"OR\n" + command_str + "\n"))
 
 			cmd = cmd.lower().strip()
-			if cmd == "i":
-				self.add_annotation("General point of interest")
-			elif cmd == "n":
-				self.add_annotation("Begin grasp set " + str(self.grasp_set_num))
+			if cmd == "n":
 				self.grasp_set_num += 1
+				self.add_annotation("Begin grasp set " + str(self.grasp_set_num))
 			elif cmd == "o":
 				self.add_annotation("Optimal grasp for grasp set " + str(self.grasp_set_num))
-			elif cmd == "e":
-				self.add_annotation("End grasp set.")
 			elif cmd == "r":
 				self.add_annotation("Grasp range extreme for grasp set: " + str(self.grasp_set_num))
+			elif cmd == "s":
+				self.add_annotation("Start of natural task.")
 			elif cmd == "\n" or cmd == "":
 				return
 			else:
@@ -135,7 +135,10 @@ class GraspData:
 		return (self.instance_dir + '/')
 
 	def close_info_file(self):
-		self.record_stop_srv(self.annotation_id)
+		try:
+			self.record_stop_srv(self.annotation_id)
+		except:
+			rospy.logerr("Trouble closing annotation bag file...")
 		print "Grasp info file closed."
 
 # Performs a walk through the grasp info directory to find the 
@@ -286,12 +289,32 @@ def move_wam_traj_offboard(dest_path):
 	if wam_sftp == None:
 		rospy.logerr("Cannot pull off wam trajectory because sftp connection is non-xistant.")
 
-	#try:
-	wam_sftp.get(wam_traj_location, dest_path)
-	#except NameError as e:
-	#	rospy.logerr("Trajectory bag file does not exist.")
-	#except:
-	#	rospy.logerr("Trouble moving wam trajectory onto host computer.")
+	try:
+		wam_sftp.get(wam_traj_location, dest_path)
+	except NameError as e:
+		rospy.logerr("Trajectory bag file does not exist.")
+	except:
+		rospy.logerr("Trouble moving wam trajectory onto host computer.")
+
+
+def handle_transport_object(cur_grasp_data, gravity_comp_srv):
+	user_input = raw_input("Would you like to transport the object? (y/n): ")
+	if user_input.lower().strip() == "y":
+		transport_object(gravity_comp_srv)
+		while True:
+			user_input = raw_input("Did the grasp succeed? (y/n/u): ")
+			user_input = user_input.lower().strip()
+			if user_input == "y":
+				cur_grasp_data.add_annotation("Grasp success.")
+				break
+			elif user_input == "n":
+				cur_grasp_data.add_annotation("Grasp failure.")
+				break
+			elif user_input == "u":
+				cur_grasp_data.add_annotation("Grasp evaluation unsuccessful.")
+				break
+			else:
+				continue
 
 
 def transport_object(gravity_comp_srv):
@@ -386,6 +409,27 @@ def init_wam_sftp():
 	wam_sftp = paramiko.SFTPClient.from_transport(client.get_transport())
 
 
+def kinect_hand_capture(init_record_srv, stop_record_srv, sounder_pub, cur_grasp_data, hand_first):
+	global kinect_data_topics
+	rospy.loginfo("Beginning kinect data capture for hand")
+	logging_directory = cur_grasp_data.get_log_dir()
+	
+	hand_str = ""
+	if hand_first:
+		hand_str = "f"
+	else:
+		hand_str = "l"
+
+	kinect_bag_path = logging_directory + "kinect_hand_capture" + hand_str + ".bag"
+	sounder_pub.publish(EmptyM())
+	kinect_bag_id = init_record_srv(kinect_bag_path, kinect_data_topics, True).bag_id
+
+	cur_grasp_data.add_annotations("Press [Enter] to complete kinect hand data recording.")
+	try:
+		stop_record_srv(kinect_bag_id)
+	except:
+		rospy.logerr("Trouble stopping kinect datra capture for human hand grasping. See bag_tools.")
+
 if __name__ == "__main__":
 	rospy.init_node("grasp_capture")
 	print "Grasp logging node online."
@@ -409,13 +453,26 @@ if __name__ == "__main__":
 	gravity_comp_srv = rospy.ServiceProxy("/wam/gravity_comp", GravityComp)
 	
 	sounder_pub = rospy.Publisher("/make_beep", EmptyM, queue_size=1)
+	bag_record_start_srv = rospy.ServiceProxy(recorder_start_topic, recordStart)
+	bag_record_stop_srv = rospy.ServiceProxy(recorder_stop_topic, recordStop)
 
 	hand_logger = HandLogger()
 
 	# Main Workflow
+	kinect_hand_cap_before_mocap = None
 	while not rospy.is_shutdown():
 		cur_grasp_data = GraspData(cur_grasp_num, sounder_pub)
 		hand_logger.set_log_dir(cur_grasp_data.get_log_dir())
+		
+		# Query the order of human hand motion capture and robot motion capture
+		researcher_input = raw_input("Hand motion capture before robot motion capture?(y/n)")
+		if researcher_input.strip().lower() == "y":
+			kinect_hand_cap_before_mocap = True
+			kinect_hand_capture(bag_record_start_srv, bag_record_stop_srv, sounder_pub, cur_grasp_data, kinect_hand_cap_before_mocap)
+			raw_input("End the eye tracking! Then press [Enter]")
+		else:
+			kinect_hand_cap_before_mocap = False
+
 
 		# Begin motion capture
 		raw_input("Press [Enter] to start the motion capture")
@@ -424,33 +481,26 @@ if __name__ == "__main__":
 		setup_hand(hand_cmd_blk_srv)
 		record_start_pub.publish(wam_traj_location)
 		hand_logger.start_hand_capture();
+		kinect_bag_id = bag_record_start_srv(cur_grasp_data.get_log_dir() + "kinect_robot_capture.bag", kinect_data_topics, True).bag_id
 
 		# End motion capture
 		cur_grasp_data.add_annotations("Press [Enter] to end the motion capture")
 		cur_grasp_data.add_annotation("Motion Capture End")
 		record_stop_pub.publish()
 		hand_logger.end_hand_capture();
+		try:
+			bag_record_stop_srv(kinect_bag_id)
+		except:
+			rospy.logerr("Trouble closing the kinect data file for the robot grasps.")
 		move_wam_traj_offboard((cur_grasp_data.get_log_dir() + wam_traj_name)) 
-		
+	
+		if not kinect_hand_cap_before_mocap:
+			raw_input("End the eye tracking! Then press [Enter]")
+
 		# Move the hand to the ledge
-		user_input = raw_input("Would you like to transport the object? (y/n): ")
-		if user_input.lower().strip() == "y":
-			transport_object(gravity_comp_srv)
-			while True:
-				user_input = raw_input("Did the grasp succeed? (y/n/u): ")
-				user_input = user_input.lower().strip()
-				if user_input == "y":
-					cur_grasp_data.add_annotation("Grasp success.")
-					break
-				elif user_input == "n":
-					cur_grasp_data.add_annotation("Grasp failure.")
-					break
-				elif user_input == "u":
-					cur_grasp_data.add_annotation("Grasp evaluation unsuccessful.")
-					break
-				else:
-					continue
+		handle_transport_object(cur_grasp_data, gravity_comp_srv)
 		
+		# Playback trial
 		user_input = raw_input("Playback? (y/n): ")
 		if user_input.lower().strip() == "y":
 			print "Beginning playback."
@@ -475,6 +525,11 @@ if __name__ == "__main__":
 			wam_home_srv(EmptyRequest())
 		except:
 			rospy.logerr("Can't move the WAM home...")
+
+		# If we didn't capture the hand before, do it now
+		if not kinect_hand_cap_before_mocap:
+			raw_input("Press [Enter] to begin kinect capture for human grasps.")
+			kinect_hand_capture(bag_record_start_srv, bag_record_stop_srv, sounder_pub, cur_grasp_data, kinect_hand_cap_before_mocap)
 
 		repeat_input = raw_input("Would you like to run another test? (y/n)")
 		if repeat_input.lower().strip() != "y":

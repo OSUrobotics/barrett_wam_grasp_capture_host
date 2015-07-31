@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- 	File: kinect2.launch
+		Description: Runs all necessary equipment to record kinect 
+			data properly 
+	-->
+	
+	<!-- Start up the kinect2 interface. Publishes to ROS topics when subscribed to -->
+	<!-- 	Use png level 9 compression for lossless, not compressed images blow the hard drive out of the water -->
+	<node name="kinect2_bridge" type="kinect2_bridge" pkg="kinect2_bridge" args="_use_png:=True _png_level:=9 _publish_tf:=True" />
+
+	<!-- Image processing nodes to provide a depth registered pointcloud -->
+	<arg name="manager_name" value="kinect2_proc_nodelet_manager"/>
+	<arg name="kinect_prefix" value="/kinect2/qhd"/>
+
+	<!--<node name="kinect2_proc_nodelet_manager" type="nodelet" pkg="nodelet" args="manager __name:=$(arg manager_name)" />
+	<node name="kinect2_ptcloud" type="nodelet" pkg="nodelet" args="load depth_image_proc/point_cloud_xyzrgb $(arg manager_name)" output="screen">
+		<remap to="$(arg kinect_prefix)/camera_info" from="rgb/camera_info" />
+		<remap to="$(arg kinect_prefix)/image_color_rect" from="rgb/image_rect_color" />
+		<remap to="$(arg kinect_prefix)/image_depth_rect" from="depth_registered/image_rect" />
+		
+		Output
+		<remap to="$(arg kinect_prefix)/depth_registered/points" from="depth_registered/points" />
+
+	</node>-->
+
+	<!--<include file="$(find kinect_pose_control)/launch/orient_kinect.launch" />-->
+</launch>
