@@ -39,7 +39,7 @@ Verify Setup on a New Computer:
 		roscore
 
 	Log into the wam via ssh and run:
-		export ROS_MASTER_URI="http://YOURCOMPUTERNAMEGOESHERE:11311"
+		. set_master_sonny
 		roslaunch wam_node wam_node.launch
 	
 	On the host computer, open a new terminal and run:

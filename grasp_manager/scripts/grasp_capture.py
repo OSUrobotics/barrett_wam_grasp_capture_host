@@ -71,8 +71,7 @@ class GraspData:
 			while True:
 				try:
 					obj_num = int(raw_input("Please enter the object number: "))
-					if obj_num >= 0 and obj_num <= 14:
-						break
+					break
 				except:
 					pass
 	
@@ -111,7 +110,8 @@ class GraspData:
 			cmd = raw_input(("\nAnnotation reference: \n\t"
 			"n - new grasp set\n\t"
 			"o - optimal grasp for grasp set\n\t"
-			"r - range extreme marker\n\t"
+			"e - range extreme marker\n\t"
+			"r - rotational symmetry\n\t"
 			"s - start natural task\n\t"
 			"OR\n" + command_str + "\n"))
 
@@ -121,8 +121,10 @@ class GraspData:
 				self.add_annotation("Begin grasp set " + str(self.grasp_set_num))
 			elif cmd == "o":
 				self.add_annotation("Optimal grasp for grasp set " + str(self.grasp_set_num))
-			elif cmd == "r":
+			elif cmd == "e":
 				self.add_annotation("Grasp range extreme for grasp set: " + str(self.grasp_set_num))
+			elif cmd == "r":
+				self.add_annotation("There is rotational symmetry for grasp set: " + str(self.grasp_set_num))
 			elif cmd == "s":
 				self.add_annotation("Start of natural task.")
 			elif cmd == "\n" or cmd == "":
@@ -430,6 +432,24 @@ def kinect_hand_capture(init_record_srv, stop_record_srv, sounder_pub, cur_grasp
 	except:
 		rospy.logerr("Trouble stopping kinect datra capture for human hand grasping. See bag_tools.")
 
+
+def commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, grasp_dir):
+	global wam_traj_name
+	user_input = raw_input("Playback? (y/n): ")
+	if user_input.lower().strip() == "y":
+		print "Beginning playback."
+		bag_file = grasp_dir + wam_traj_name
+		try:
+			setup_playback(hand_cmd_blk_srv, playback_load_srv, bag_file)
+			playback_start_pub.publish(EmptyM())
+			hand_playback_start_pub.publish(grasp_dir + hand_logger.bag_name)
+			raw_input("Press [Enter] when playback is complete.")
+		except:
+			rospy.logerr("Playback aborted.")
+			pass	
+
+		
+
 if __name__ == "__main__":
 	rospy.init_node("grasp_capture")
 	print "Grasp logging node online."
@@ -498,23 +518,10 @@ if __name__ == "__main__":
 			raw_input("End the eye tracking! Then press [Enter]")
 
 		# Move the hand to the ledge
-		handle_transport_object(cur_grasp_data, gravity_comp_srv)
+		#handle_transport_object(cur_grasp_data, gravity_comp_srv)
 		
 		# Playback trial
-		user_input = raw_input("Playback? (y/n): ")
-		if user_input.lower().strip() == "y":
-			print "Beginning playback."
-			bag_file = cur_grasp_data.get_log_dir() + wam_traj_name
-			try:
-				setup_playback(hand_cmd_blk_srv, playback_load_srv, bag_file)
-				playback_start_pub.publish(EmptyM())
-				hand_playback_start_pub.publish(cur_grasp_data.get_log_dir() + hand_logger.bag_name)
-				raw_input("Press [Enter] when playback is complete.")
-			except:
-				rospy.logerr("Playback aborted.")
-				pass	
-
-		
+		#commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, cur_grasp_data.get_log_dir())
 
 		# Save grasping data
 		cur_grasp_data.add_annotation("Bag file closing. End final grasp set.")
