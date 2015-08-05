@@ -502,6 +502,7 @@ if __name__ == "__main__":
 
 		# Begin motion capture
 		raw_input("Press [Enter] to start the motion capture")
+		kinect_monitor.block_for_kinect()
 		cur_grasp_data.add_annotation("Motion Capture Start")
 		sounder_pub.publish()
 		setup_hand(hand_cmd_blk_srv)
