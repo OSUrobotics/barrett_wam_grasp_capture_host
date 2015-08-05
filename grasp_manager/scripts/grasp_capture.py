@@ -7,6 +7,7 @@ from geometry_msgs.msg import PoseStamped
 from wam_srvs.srv import HandCommandBlkRequest, HandCommandBlkResponse, HandCommandBlk, JointRecordPlayback, CartPosMove, CartPosMoveRequest, CartPosMoveResponse, GravityComp, GravityCompRequest, GravityCompResponse, PoseMove, PoseMoveRequest, PoseMoveResponse, OrtnMove, OrtnMoveRequest, OrtnMoveResponse
 from bag_tools.srv import *
 from wam_msgs.msg import HandCommand, StampedString
+from kinect_monitor import *
 
 import sys
 import os
@@ -14,8 +15,8 @@ import datetime
 import time
 import paramiko
 
-#grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
-grasp_info_dir = "/media/sonny/FA648F24648EE2AD/grasp_data"	# The fully qualified path to the grasp data
+grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
+#grasp_info_dir = "/media/sonny/FA648F24648EE2AD/grasp_data"	# The fully qualified path to the grasp data
 recorder_start_topic = "start_record"
 recorder_stop_topic = "stop_record"
 cur_wam_pose = None
@@ -25,7 +26,7 @@ wam_traj_location = "/tmp/" + wam_traj_name
 wam_sftp = None
 wam_ssh = None
 kinect_topic_prefix = "/kinect2/qhd/"
-kinect_data_topics = [kinect_topic_prefix + "image_color_rect", kinect_topic_prefix + "image_depth_rect"]
+kinect_data_topics = [kinect_topic_prefix + "image_color_rect/compressed", kinect_topic_prefix + "image_depth_rect/compressed"]
 
 class PoseMoveException(Exception):
 	def __init__(self, req_pos):
@@ -45,7 +46,6 @@ class GraspData:
 
 		self.make_data_dir()
 		self.info_file_path = self.instance_dir + "/" + "general_info.bag"
-		#self.info_file = open(self.info_file_path, "w")
 		self.annotations_topic = "/grasp_annotations"
 		self.annotations_pub = rospy.Publisher(self.annotations_topic, StampedString, queue_size=1)
 		self.sounder_pub = sounder_pub
@@ -102,7 +102,6 @@ class GraspData:
 
 	def add_annotation(self, annotation_string):
 		self.annotations_pub.publish(rospy.Time.now(), annotation_string)
-		#self.sounder_pub.publish()
 		print "Added annotation: ", annotation_string
 
 	def add_annotations(self, command_str):
@@ -124,7 +123,7 @@ class GraspData:
 			elif cmd == "e":
 				self.add_annotation("Grasp range extreme for grasp set: " + str(self.grasp_set_num))
 			elif cmd == "r":
-				self.add_annotation("There is rotational symmetry for grasp set: " + str(self.grasp_set_num))
+				self.add_annotation("There is rotational symmetry about this axis for grasp set: " + str(self.grasp_set_num))
 			elif cmd == "s":
 				self.add_annotation("Start of natural task.")
 			elif cmd == "\n" or cmd == "":
@@ -388,6 +387,8 @@ def verify_data_directories():
 		
 def init_wam_sftp():
 	global wam_sftp, wam_ssh
+	rospy.loginfo("Initializing WAM SFTP connection.")
+
 	client = paramiko.SSHClient()
 	client.load_system_host_keys()
 	client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -411,8 +412,11 @@ def init_wam_sftp():
 	wam_sftp = paramiko.SFTPClient.from_transport(client.get_transport())
 
 
-def kinect_hand_capture(init_record_srv, stop_record_srv, sounder_pub, cur_grasp_data, hand_first):
+def kinect_hand_capture(init_record_srv, stop_record_srv, sounder_pub, cur_grasp_data, hand_first, kinect_monitor):
 	global kinect_data_topics
+
+	kinect_monitor.block_for_kinect()
+
 	rospy.loginfo("Beginning kinect data capture for hand")
 	logging_directory = cur_grasp_data.get_log_dir()
 	
@@ -460,6 +464,8 @@ if __name__ == "__main__":
 	verify_data_directories()
 	init_wam_sftp()
 
+	kinect_monitor = KinectMonitor(kinect_data_topics[1])
+
 	wam_home_srv = rospy.ServiceProxy('/wam/go_home', Empty)
 	record_start_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_start', String, queue_size=1)
 	record_stop_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_stop', EmptyM, queue_size=1)
@@ -488,7 +494,7 @@ if __name__ == "__main__":
 		researcher_input = raw_input("Hand motion capture before robot motion capture?(y/n)")
 		if researcher_input.strip().lower() == "y":
 			kinect_hand_cap_before_mocap = True
-			kinect_hand_capture(bag_record_start_srv, bag_record_stop_srv, sounder_pub, cur_grasp_data, kinect_hand_cap_before_mocap)
+			kinect_hand_capture(bag_record_start_srv, bag_record_stop_srv, sounder_pub, cur_grasp_data, kinect_hand_cap_before_mocap, kinect_monitor)
 			raw_input("End the eye tracking! Then press [Enter]")
 		else:
 			kinect_hand_cap_before_mocap = False
@@ -536,7 +542,7 @@ if __name__ == "__main__":
 		# If we didn't capture the hand before, do it now
 		if not kinect_hand_cap_before_mocap:
 			raw_input("Press [Enter] to begin kinect capture for human grasps.")
-			kinect_hand_capture(bag_record_start_srv, bag_record_stop_srv, sounder_pub, cur_grasp_data, kinect_hand_cap_before_mocap)
+			kinect_hand_capture(bag_record_start_srv, bag_record_stop_srv, sounder_pub, cur_grasp_data, kinect_hand_cap_before_mocap, kinect_monitor)
 
 		repeat_input = raw_input("Would you like to run another test? (y/n)")
 		if repeat_input.lower().strip() != "y":
