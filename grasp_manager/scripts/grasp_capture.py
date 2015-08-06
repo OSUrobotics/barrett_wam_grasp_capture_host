@@ -15,8 +15,8 @@ import datetime
 import time
 import paramiko
 
-grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
-#grasp_info_dir = "/media/sonny/FA648F24648EE2AD/grasp_data"	# The fully qualified path to the grasp data
+#grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
+grasp_info_dir = "/media/sonny/FA648F24648EE2AD/grasp_data"	# The fully qualified path to the grasp data
 recorder_start_topic = "start_record"
 recorder_stop_topic = "stop_record"
 cur_wam_pose = None
@@ -378,7 +378,10 @@ def verify_data_directories():
 	dir_path = grasp_info_dir + "/good"
 	if not os.path.exists(dir_path):
 		rospy.loginfo("Data directory 'good' doesnt exist. Creating.")
-		os.makedirs(dir_path)
+		try:
+			os.makedirs(dir_path)
+		except OSError:
+			rospy.logerr("Cannot create grasping directory... Is the harddrive connected?")
 
 	dir_path = grasp_info_dir + "/bad"
 	if not os.path.exists(dir_path):
@@ -416,7 +419,7 @@ def kinect_hand_capture(init_record_srv, stop_record_srv, sounder_pub, cur_grasp
 	global kinect_data_topics
 
 	kinect_monitor.block_for_kinect()
-
+	kinect_monitor.start_monitor()
 	rospy.loginfo("Beginning kinect data capture for hand")
 	logging_directory = cur_grasp_data.get_log_dir()
 	
@@ -431,6 +434,7 @@ def kinect_hand_capture(init_record_srv, stop_record_srv, sounder_pub, cur_grasp
 	kinect_bag_id = init_record_srv(kinect_bag_path, kinect_data_topics, True).bag_id
 
 	cur_grasp_data.add_annotations("Press [Enter] to complete kinect hand data recording.")
+	kinect_monitor.stop_monitor()
 	try:
 		stop_record_srv(kinect_bag_id)
 	except:
@@ -503,6 +507,7 @@ if __name__ == "__main__":
 		# Begin motion capture
 		raw_input("Press [Enter] to start the motion capture")
 		kinect_monitor.block_for_kinect()
+		kinect_monitor.start_monitor()
 		cur_grasp_data.add_annotation("Motion Capture Start")
 		sounder_pub.publish()
 		setup_hand(hand_cmd_blk_srv)
@@ -513,6 +518,7 @@ if __name__ == "__main__":
 		# End motion capture
 		cur_grasp_data.add_annotations("Press [Enter] to end the motion capture")
 		cur_grasp_data.add_annotation("Motion Capture End")
+		kinect_monitor.stop_monitor()
 		record_stop_pub.publish()
 		hand_logger.end_hand_capture();
 		try:
