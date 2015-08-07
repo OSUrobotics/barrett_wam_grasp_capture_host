@@ -526,7 +526,7 @@ if __name__ == "__main__":
 			bag_record_stop_srv(kinect_bag_id)
 		except:
 			rospy.logerr("Trouble closing the kinect data file at end of motion capture.")
-		move_wam_traj_offboard((cur_grasp_data.get_log_dir() + wam_traj_name)) 
+		#move_wam_traj_offboard((cur_grasp_data.get_log_dir() + wam_traj_name)) 
 	
 		if not kinect_hand_cap_before_mocap:
 			raw_input("End the eye tracking! Then press [Enter]")
