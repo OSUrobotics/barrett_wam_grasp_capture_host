@@ -511,8 +511,9 @@ if __name__ == "__main__":
 		cur_grasp_data.add_annotation("Motion Capture Start")
 		sounder_pub.publish()
 		setup_hand(hand_cmd_blk_srv)
-		record_start_pub.publish(wam_traj_location)
 		hand_logger.start_hand_capture();
+		record_start_pub.publish(EmptyM())
+		wam_bag_id = bag_record_start_srv(cur_grasp_data.get_log_dir() + wam_traj_name, ["/wam_grasp_capture/recording/joint_states"], True).bag_id
 		kinect_bag_id = bag_record_start_srv(cur_grasp_data.get_log_dir() + "kinect_robot_capture.bag", kinect_data_topics, True).bag_id
 
 		# End motion capture
@@ -524,7 +525,7 @@ if __name__ == "__main__":
 		try:
 			bag_record_stop_srv(kinect_bag_id)
 		except:
-			rospy.logerr("Trouble closing the kinect data file for the robot grasps.")
+			rospy.logerr("Trouble closing the kinect data file at end of motion capture.")
 		move_wam_traj_offboard((cur_grasp_data.get_log_dir() + wam_traj_name)) 
 	
 		if not kinect_hand_cap_before_mocap:
@@ -556,4 +557,5 @@ if __name__ == "__main__":
 			break
 		else:
 			cur_grasp_num += 1
-
+	
+	rospy.loginfo("Grasp testing complete =)")
