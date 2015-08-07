@@ -21,6 +21,7 @@ recorder_start_topic = "start_record"
 recorder_stop_topic = "stop_record"
 cur_wam_pose = None
 prelog_hand_pose = [0,0,0,0]
+wam_jnt_topic = "/wam_grasp_capture/recording/joint_states"
 wam_traj_name = "wam_traj.bag"
 wam_traj_location = "/tmp/" + wam_traj_name
 wam_sftp = None
@@ -255,7 +256,7 @@ def setup_playback(hand_cmd_blk_srv, wam_load_srv, bag_file):
 	setup_hand(hand_cmd_blk_srv)
 
 	move_wam_traj_onboard(bag_file)
-	wam_load_srv(wam_traj_location)
+	wam_load_srv(wam_traj_location, wam_jnt_topic)
 
 def setup_hand(hand_cmd_blk_srv):
 	global prelog_hand_pose
@@ -471,7 +472,7 @@ if __name__ == "__main__":
 	kinect_monitor = KinectMonitor(kinect_data_topics[1])
 
 	wam_home_srv = rospy.ServiceProxy('/wam/go_home', Empty)
-	record_start_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_start', String, queue_size=1)
+	record_start_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_start', EmptyM, queue_size=1)
 	record_stop_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_stop', EmptyM, queue_size=1)
 	playback_load_srv = rospy.ServiceProxy('/wam_grasp_capture/jnt_playback_load', JointRecordPlayback)
 	playback_start_pub = rospy.Publisher('/wam_grasp_capture/jnt_playback_start', EmptyM, queue_size=1)
@@ -513,7 +514,7 @@ if __name__ == "__main__":
 		setup_hand(hand_cmd_blk_srv)
 		hand_logger.start_hand_capture();
 		record_start_pub.publish(EmptyM())
-		wam_bag_id = bag_record_start_srv(cur_grasp_data.get_log_dir() + wam_traj_name, ["/wam_grasp_capture/recording/joint_states"], True).bag_id
+		wam_bag_id = bag_record_start_srv(cur_grasp_data.get_log_dir() + wam_traj_name, [wam_jnt_topic], True).bag_id
 		kinect_bag_id = bag_record_start_srv(cur_grasp_data.get_log_dir() + "kinect_robot_capture.bag", kinect_data_topics, True).bag_id
 
 		# End motion capture
@@ -524,6 +525,7 @@ if __name__ == "__main__":
 		hand_logger.end_hand_capture();
 		try:
 			bag_record_stop_srv(kinect_bag_id)
+			bag_record_stop_srv(wam_bag_id)
 		except:
 			rospy.logerr("Trouble closing the kinect data file at end of motion capture.")
 		#move_wam_traj_offboard((cur_grasp_data.get_log_dir() + wam_traj_name)) 
@@ -535,7 +537,7 @@ if __name__ == "__main__":
 		#handle_transport_object(cur_grasp_data, gravity_comp_srv)
 		
 		# Playback trial
-		#commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, cur_grasp_data.get_log_dir())
+		commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, cur_grasp_data.get_log_dir())
 
 		# Save grasping data
 		cur_grasp_data.add_annotation("Bag file closing. End final grasp set.")
