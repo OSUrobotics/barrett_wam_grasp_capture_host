@@ -8,6 +8,7 @@ class KinectMonitor:
 	def __init__(self, depth_topic):
 		self.acceptable_kinect_publish_time = 0.5 # Includes startup delay
 		self.monitor_period = 3 # seconds
+		self.should_kill_monitor = False
 		self.recv_depth_msg = False
 		self.depth_topic = depth_topic
 
@@ -23,11 +24,16 @@ class KinectMonitor:
 		period = rospy.Duration(self.monitor_period)
 
 		while not rospy.is_shutdown() and self.continue_monitor:
+			if self.should_kill_monitor:
+				break
 			self.monitor_lock.acquire()
 			self.check_kinect_depth(self.acceptable_kinect_publish_time)
 			self.monitor_lock.release()
 			
 			rospy.sleep(period)
+
+		print "Kinect monitor thread shutdown"
+		return
 
 	def start_monitor(self):
 		try:
@@ -41,6 +47,9 @@ class KinectMonitor:
 	def stop_monitor(self):
 		self.monitor_lock.acquire()
 		rospy.loginfo("Kinect monitoring stopped.")
+
+	def kill_monitor(self):
+		self.should_kill_monitor = True
 
 	# Parameters: delay - time to wait for messages in seconds (float)
 	def check_kinect_depth(self, delay):
