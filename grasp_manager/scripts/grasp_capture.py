@@ -41,7 +41,7 @@ class GraspData:
 		self.bag_manager = bag_manager
 		
 		self.make_data_dir()
-		self.info_file_path = self.instance_dir + "/" + "general_info.bag"
+		self.info_file_path = self.instance_dir + "/" + "robot_grasp_annotations.bag"
 		self.human_grasp_path = self.instance_dir + "/" + "human_grasp_annotations.bag"
 		self.annotations_topic = "/grasp_annotations"
 		self.annotations_pub = rospy.Publisher(self.annotations_topic, StampedString, queue_size=1)
