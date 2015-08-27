@@ -5,7 +5,7 @@ import rospkg
 
 from std_msgs.msg import String
 from wam_msgs.msg import StampedString
-from sensor_msgs.msg import CompressedImage, Image, CameraInfo, PointCloud2
+from sensor_msgs.msg import CompressedImage, Image, CameraInfo, PointCloud2, JointState
 from rosgraph_msgs.msg import Clock
 from ar_track_alvar_msgs.msg import AlvarMarkers as ARMarker
 from grasp_manager.msg import GraspSnapshot
@@ -92,12 +92,22 @@ def get_extreme_timestamps(annotation_bag_path):
 		
 		# Find image timestamps
 		if "Grasp range extreme" in msg.data:
+			file_grasp_num = get_grasp_num(msg.data)
 			try:
-				relevant_grasp_timestamps[grasp_set_num].append(msg.stamp)
+				relevant_grasp_timestamps[grasp_set_num].append((msg.stamp, file_grasp_num))
 			except KeyError:
-				relevant_grasp_timestamps[grasp_set_num] = [msg.stamp]
+				relevant_grasp_timestamps[grasp_set_num] = [(msg.stamp, file_grasp_num)]
 	return relevant_grasp_timestamps
 
+
+def get_grasp_num(grasp_message):
+	msg_bits = grasp_message.split()
+	grasp_num_str = grasp_message[-1]
+	try:
+		return int(grasp_num_str)
+	except ValueError:
+		rospy.logerr("Cannot determine grasp str for string '" + grasp_message + "'.")
+		return int(raw_input("Please insert the grasp number at the end of the string."))
 
 # Republishes relevant data at the request timestamp for depth registration
 #	and pointcloud processing
@@ -110,7 +120,7 @@ def repub_data_stamp(grasp_stamp, img_depth_bag, cam_info_spammer):
 	play_time = rospy.Duration(3.0)
 	lead_time = rospy.Duration(0.5)
 
-	rospy.loginfo("Starting playback searching for stamp " + str(grasp_stamp))
+	rospy.loginfo("Starting depth/rgb playback searching for stamp " + str(grasp_stamp))
 	depth_count = 10
 	for topic, msg, t in img_depth_bag.read_messages(topics=kinect_data_topics, start_time=(grasp_stamp - lead_time), end_time=(grasp_stamp + play_time)):
 		if msg.header.stamp >= grasp_stamp and "color" in topic and pub_next_msgs == -1:
@@ -122,7 +132,7 @@ def repub_data_stamp(grasp_stamp, img_depth_bag, cam_info_spammer):
 			rgb_pub.publish(msg)
 			pub_next_msgs -= 1
 			time.sleep(0.01)
-			print "Image, camera info, and clock published."
+			#print "Image, camera info, and clock published."
 			continue
 
 		if pub_next_msgs > 0 and depth_count > 0 and "depth" in topic:
@@ -133,7 +143,35 @@ def repub_data_stamp(grasp_stamp, img_depth_bag, cam_info_spammer):
 			
 		if pub_next_msgs == 0:
 			break
-		
+
+def get_joint_values(data_dir_path, grasp_stamp):
+	arm_bag = rosbag.Bag(data_dir_path + "/" + "wam_traj.bag", "r")
+	hand_bag = rosbag.Bag(data_dir_path + "/" + "hand_commands.bag", "r")
+	arm_jnts = msg_from_bag(arm_bag, "/wam_grasp_capture/recording/joint_states", grasp_stamp)
+	if arm_jnts == None:
+		rospy.logerr("Couldn't get wam arm joints for this grasp.")
+		arm_jnts = JointState()
+
+	hand_jnts = msg_from_bag(hand_bag, "/bhand/joint_states", grasp_stamp)
+	if hand_jnts == None:
+		rospy.logerr("Couldn't get barrett hand joints for this grasp.")
+		hand_jnts = JointState()
+	
+	arm_bag.close()
+	hand_bag.close()
+	return (arm_jnts, hand_jnts)
+
+def msg_from_bag(bag, topic, time_stamp):
+	lead_time = rospy.Duration(0.5)
+	play_time = rospy.Duration(0.5)
+	for topic, msg, t in bag.read_messages(topics=[topic], start_time=(grasp_stamp - lead_time), end_time=(grasp_stamp + play_time)):
+		#print "data: ", msg
+		if t >= time_stamp:
+			return msg
+	# No luck
+	return None
+
+
 if __name__ == "__main__":
 	rospy.init_node("extract_extremes")
 	print "Data directory: ", grasp_data_directory
@@ -160,7 +198,10 @@ if __name__ == "__main__":
 		for grasp_set_num in relevant_grasp_timestamps:
 			grasp_set = relevant_grasp_timestamps[grasp_set_num]
 			extreme_num = 0
-			for idx, grasp_stamp in enumerate(grasp_set):
+			for idx, grasp_tuple in enumerate(grasp_set):
+				grasp_stamp = grasp_tuple[0]
+				grasp_abs_num = grasp_tuple[1]
+
 				# Create the unified message
 				img_depth_bag = rosbag.Bag(data_dir_path + "/" + "kinect_robot_capture.bag")
 				relevant_data = Recapturer()
@@ -173,17 +214,23 @@ if __name__ == "__main__":
 				except rospy.ServiceException, e:
 					rospy.logerr("Transformation call failed!")
 
+				robot_jnts = get_joint_values(data_dir_path, grasp_stamp)
+
 				grasp = GraspSnapshot()
 				grasp.stamp = grasp_stamp
 				grasp.obj_num = int(obj_num)
 				grasp.sub_num = int(sub_num)
-				grasp.grasp_num = int(grasp_set_num)
+				grasp.grasp_num = int(grasp_abs_num)
+				grasp.grasp_idx = int(grasp_set_num)
 				grasp.extreme_num = extreme_num
 				grasp.cloud_image = out_cloud
 				grasp.rgb_image = relevant_data.get_data('rgb')
 				grasp.depth_image = relevant_data.get_data('depth')
 				grasp.cam_info = relevant_data.get_data('camera_info')
-			
+				
+				grasp.wam_joints = robot_jnts[0]
+				grasp.hand_joints = robot_jnts[1]
+
 				# Save the data to output file
 				output_bag.write(grasp_extreme_topic, grasp)
 
