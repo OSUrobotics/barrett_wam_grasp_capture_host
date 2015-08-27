@@ -16,7 +16,14 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   wam_msgs
   wam_srvs
+  image_transport
+  pcl_ros
+  message_filters
+  message_generation
 )
+
+#find_package(OpenCV REQUIRED)
+find_package(PCL REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -52,18 +59,16 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  GraspSnapshot.msg
+)
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  TransformCloud.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -73,10 +78,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   sensor_msgs#   std_msgs#   wam_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs   sensor_msgs   std_msgs#   wam_msgs
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -90,7 +95,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES grasp_manager
-#  CATKIN_DEPENDS bag_tools geometry_msgs rosbag roscpp rospy sensor_msgs std_msgs std_srvs tf wam_msgs wam_srvs
+  CATKIN_DEPENDS bag_tools geometry_msgs rosbag roscpp rospy sensor_msgs std_msgs std_srvs tf wam_msgs wam_srvs message_runtime
 #  DEPENDS system_lib
 )
 
@@ -111,8 +116,11 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-# add_executable(grasp_manager_node src/grasp_manager_node.cpp)
+add_executable(depth_decompressor src/depth_decompressor.cpp)
+target_link_libraries(depth_decompressor ${catkin_LIBRARIES})
 
+add_executable(pointcloud_transformer src/pointcloud_transformer.cpp)
+target_link_libraries(pointcloud_transformer ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(grasp_manager_node grasp_manager_generate_messages_cpp)

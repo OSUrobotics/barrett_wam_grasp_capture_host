@@ -1,0 +1,14 @@
+To splice out extremes, you need to run a roscore, the grasp_manager's pointcloud_processor launch file, and the extract extreme's file.
+
+To view raw pointclouds and transforms, run a roscore, the pointcloud processor, the camera calbration bag file in the config, a bag file of your choice, the grasp_manager's camera_info_repub and the following relay:
+	rosrun topic_tools relay /kinect2/qhd/camera_info /kinect2/qhd/camera_info_raw
+
+To view retrieved pointclouds, run grasp_manager's replay_extraction, the robot_sticker_verification launch file and the following topic splitter
+	rosrun tf static_transform_publisher 0.079 0.046 -0.141 1.586 0 1.5 /robot_marker /robot_base 10
+
+
+To get pointclouds to visualize, Rviz must be able to use tf to relate the global reference frame and the pointcloud's frame of reference.
+
+A good transform from the sticker to the robot's base is here:
+	rosrun tf static_transform_publisher 0.079 0.046 -0.141 1.586 0 1.5 /robot_marker /robot_base 10
+

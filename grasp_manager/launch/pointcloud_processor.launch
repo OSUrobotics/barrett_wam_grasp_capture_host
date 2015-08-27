@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Run everything on the simulation clock -->
+	<param name="/use_sim_time" value="true" />
+
+	<!-- Important Parameters -->
+	<arg name="kinect_prefix" value="/kinect2/qhd"/>
+
+	<!--<node name="image_replay" type="play" pkg="rosbag" args="clock "-->
+	<!--<node name="rosbag" type="play" pkg="rosbag" args="-l $(find grasp_manager)/config/kinect2_cam_info.bag">
+		<remap from="/kinect2/qhd/camera_info" to="/kinect2/qhd/camera_info_raw" />
+	</node>-->
+
+	<!--<node name="camera_info_repub" type="camera_info_repub.py" pkg="grasp_manager" output="screen"/>-->
+
+	<!-- AR Transform Publisher -->
+	<include file="$(find grasp_manager)/launch/ar_publisher.launch"/>
+
+	<!-- Image decompressors for orientation (rgb) and pointclouds (depth) -->
+	<node name="rgb_decompressor" type="republish" pkg="image_transport" output="screen" args="compressed in:=$(arg kinect_prefix)/image_color_rect raw out:=$(arg kinect_prefix)/image_color_rect" />
+	<!-- NOTE: the kinect driver does not use a sstandard depth compression scheme for some unknown reason. They instead use the regular rgb compression algorithm -->
+	<node name="depth_decompressor" type="republish" pkg="image_transport" output="screen" args="compressed in:=$(arg kinect_prefix)/image_depth_rect raw out:=$(arg kinect_prefix)/image_depth_rect" />
+	<!--<node name="depth_decompressor" type="depth_decompressor" pkg="grasp_manager" output="screen" >
+		<param name="input_topic" value="$(arg kinect_prefix)/image_depth_rect" />
+		<param name="output_topic" value="$(arg kinect_prefix)/image_depth_rect" />
+		<param name="lazy" value="false" />
+	</node>-->
+
+	<!-- Depth image to Pointcloud Convertor -->
+	<arg name="manager_name" value="kinect2_proc_nodelet_manager"/>
+	<node name="kinect2_proc_nodelet_manager" type="nodelet" pkg="nodelet" args="manager __name:=$(arg manager_name)" />
+	<node name="kinect2_ptcloud" type="nodelet" pkg="nodelet" args="load depth_image_proc/point_cloud_xyzrgb $(arg manager_name)" output="screen">
+		<remap to="$(arg kinect_prefix)/camera_info" from="rgb/camera_info" />
+		<remap to="$(arg kinect_prefix)/image_color_rect" from="rgb/image_rect_color" />
+		<remap to="$(arg kinect_prefix)/image_depth_rect" from="depth_registered/image_rect" />
+		
+		<!--Output-->
+		<remap to="$(arg kinect_prefix)/depth_registered/points" from="depth_registered/points" />
+
+	</node>
+
+	<!-- Pointcloud Reorientor -->
+	<node name="pointcloud_transformer" type="pointcloud_transformer" pkg="grasp_manager" output="screen" />
+</launch>

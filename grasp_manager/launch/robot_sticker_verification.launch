@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+	<node name="pointcloud_broadcaster" type="repubby.py" pkg="grasp_manager" output="screen"/>
+	<node name="rviz" type="rviz" pkg="rviz" output="screen"/>
+	
+	<!-- You need to play the specific bag file you want and publish your own transform -->
+</launch>

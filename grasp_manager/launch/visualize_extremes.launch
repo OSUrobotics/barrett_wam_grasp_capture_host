@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+	<node name="replay_extraction" type="replay_extraction.py" pkg="grasp_manager" output="screen"/>
+
+	<!-- Splitters -->
+	<node name="pointcloud_pub" type="transform" pkg="topic_tools" args="/grasp_extremes /extreme_ptclouds sensor_msgs/PointCloud2 'm.cloud_image'" output="screen" />
+	<node name="depth_pub" type="transform" pkg="topic_tools" args="/grasp_extremes /extreme_depth sensor_msgs/Image 'm.depth_image'" output="screen" />
+	<node name="rgb_pub" type="transform" pkg="topic_tools" args="/grasp_extremes /extreme_rgb sensor_msgs/Image 'm.rgb_image'" output="screen" />
+</launch>
