@@ -38,7 +38,6 @@ class CamInfoSpammer:
 			camera_info_bag.close()
 			return msg
 
-		# If we reach here, its a problem
 		rospy.logerr("No camera info message found in " + camera_info_bag_path)
 		sys.exit(1)
 
@@ -99,31 +98,23 @@ def get_extreme_timestamps(annotation_bag_path):
 				relevant_grasp_timestamps[grasp_set_num] = [(msg.stamp, file_grasp_num)]
 	return relevant_grasp_timestamps
 
-
-def get_grasp_num(grasp_message):
-	msg_bits = grasp_message.split()
-	grasp_num_str = grasp_message[-1]
-	try:
-		return int(grasp_num_str)
-	except ValueError:
-		rospy.logerr("Cannot determine grasp str for string '" + grasp_message + "'.")
-		return int(raw_input("Please insert the grasp number at the end of the string."))
-
 # Republishes relevant data at the request timestamp for depth registration
 #	and pointcloud processing
 # We want to publish a lot of frames to get an accurate kinect-robot transform, but
 #	we also want the pointcloud from a specific second. So, we publish few depth
 #	images and lots of rgb images.
 def repub_data_stamp(grasp_stamp, img_depth_bag, cam_info_spammer):
-	max_num_pub_msgs = 100
+	max_num_pub_msgs = 10
 	pub_next_msgs = -1
 	play_time = rospy.Duration(3.0)
 	lead_time = rospy.Duration(0.5)
 
 	rospy.loginfo("Starting depth/rgb playback searching for stamp " + str(grasp_stamp))
-	depth_count = 10
+	depth_count = -1
+	rgb_img = None
 	for topic, msg, t in img_depth_bag.read_messages(topics=kinect_data_topics, start_time=(grasp_stamp - lead_time), end_time=(grasp_stamp + play_time)):
 		if msg.header.stamp >= grasp_stamp and "color" in topic and pub_next_msgs == -1:
+			rgb_img = msg
 			pub_next_msgs = max_num_pub_msgs
 		
 		if pub_next_msgs > 0 and "color" in topic:
@@ -132,12 +123,11 @@ def repub_data_stamp(grasp_stamp, img_depth_bag, cam_info_spammer):
 			rgb_pub.publish(msg)
 			pub_next_msgs -= 1
 			time.sleep(0.01)
-			#print "Image, camera info, and clock published."
+			print "Image, camera info, and clock published."
 			continue
 
-		if pub_next_msgs > 0 and depth_count > 0 and "depth" in topic:
+		if pub_next_msgs > 0 and "depth" in topic:
 			depth_pub.publish(msg)
-			depth_count -= 1
 			print "Published depth image."
 			continue
 			
@@ -208,11 +198,12 @@ if __name__ == "__main__":
 				repub_data_stamp(grasp_stamp, img_depth_bag, cam_info_spammer)
 				
 				grasp_cloud = relevant_data.get_data('ptcloud')
-				marker_pose = relevant_data.get_data('marker_pose')
-				try:
-					out_cloud = cloud_transformer(marker_pose, grasp_cloud).cloud
-				except rospy.ServiceException, e:
-					rospy.logerr("Transformation call failed!")
+				## AR Marker transforms. Killed because it's inaccurate. Switching to ICP against robot arm
+				#marker_pose = relevant_data.get_data('marker_pose')
+				#try:
+				#	out_cloud = cloud_transformer(marker_pose, grasp_cloud).cloud
+				#except rospy.ServiceException, e:
+				#	rospy.logerr("Transformation call failed!")
 
 				robot_jnts = get_joint_values(data_dir_path, grasp_stamp)
 
@@ -223,7 +214,8 @@ if __name__ == "__main__":
 				grasp.grasp_num = int(grasp_abs_num)
 				grasp.grasp_idx = int(grasp_set_num)
 				grasp.extreme_num = extreme_num
-				grasp.cloud_image = out_cloud
+				grasp.is_optimal = False
+				grasp.cloud_image = grasp_cloud
 				grasp.rgb_image = relevant_data.get_data('rgb')
 				grasp.depth_image = relevant_data.get_data('depth')
 				grasp.cam_info = relevant_data.get_data('camera_info')

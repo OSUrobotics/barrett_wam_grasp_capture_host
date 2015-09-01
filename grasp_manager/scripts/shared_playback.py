@@ -11,3 +11,19 @@ def get_data_dir():
 	data_dir_name = "obj" + obj + "_sub" + sub
 	data_dir_path = grasp_data_directory + "/good/" + data_dir_name
 	return data_dir_path, obj, sub
+
+def get_grasp_num(grasp_message):
+	msg_bits = grasp_message.split()
+	grasp_num_str = grasp_message[-1]
+	try:
+		return int(grasp_num_str)
+	except ValueError:
+		rospy.logerr("Cannot determine grasp str for string '" + grasp_message + "'.")
+		return int(raw_input("Please insert the grasp number at the end of the string."))
+
+def set_grasp_num(grasp_message, new_num):
+	for idx, c in enumerate(grasp_message):
+		if c.isdigit():
+			grasp_message = grasp_message[:idx]
+
+	return grasp_message + str(new_num)

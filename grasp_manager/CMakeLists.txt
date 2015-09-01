@@ -20,10 +20,12 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   message_filters
   message_generation
+  cv_bridge
 )
 
 #find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
+find_package(OpenCV REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -108,6 +110,7 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
@@ -121,6 +124,10 @@ target_link_libraries(depth_decompressor ${catkin_LIBRARIES})
 
 add_executable(pointcloud_transformer src/pointcloud_transformer.cpp)
 target_link_libraries(pointcloud_transformer ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(pointcloud_saver src/pointcloud_saver.cpp)
+target_link_libraries(pointcloud_saver ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+set_target_properties(pointcloud_saver PROPERTIES COMPILE_FLAGS "-Wall -std=c++0x")
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(grasp_manager_node grasp_manager_generate_messages_cpp)

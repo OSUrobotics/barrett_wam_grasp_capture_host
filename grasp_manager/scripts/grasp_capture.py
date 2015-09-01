@@ -15,8 +15,9 @@ import time
 import paramiko
 
 from bag_manager import BagManager
+from shared_globals import *
 
-grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
+#grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
 #grasp_info_dir = "/media/sonny/FA648F24648EE2AD/grasp_data"	# The fully qualified path to the grasp data
 cur_wam_pose = None
 prelog_hand_pose = [0,0,0,0]
@@ -25,8 +26,8 @@ wam_traj_name = "wam_traj.bag"
 wam_traj_location = "/tmp/" + wam_traj_name
 wam_sftp = None
 wam_ssh = None
-kinect_topic_prefix = "/kinect2/qhd/"
-kinect_data_topics = [kinect_topic_prefix + "image_color_rect/compressed", kinect_topic_prefix + "image_depth_rect/compressed"]
+#kinect_topic_prefix = "/kinect2/qhd/"
+#kinect_data_topics = [kinect_topic_prefix + "image_color_rect/compressed", kinect_topic_prefix + "image_depth_rect/compressed"]
 
 class PoseMoveException(Exception):
 	def __init__(self, req_pos):
