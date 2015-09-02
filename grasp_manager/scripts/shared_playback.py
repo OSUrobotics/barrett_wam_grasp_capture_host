@@ -1,3 +1,4 @@
+import rosbag
 from shared_globals import *
 
 extreme_bag_name = "grasp_extreme_snapshots.bag"
@@ -14,7 +15,10 @@ def get_data_dir():
 
 def get_grasp_num(grasp_message):
 	msg_bits = grasp_message.split()
-	grasp_num_str = grasp_message[-1]
+	grasp_num_str = msg_bits[-1]
+	print "grasp_message: ", grasp_message
+	print "msg bits: ", msg_bits
+	print "Grasp num str: ", grasp_num_str
 	try:
 		return int(grasp_num_str)
 	except ValueError:
@@ -28,6 +32,7 @@ def set_grasp_num(grasp_message, new_num):
 
 	return grasp_message + str(new_num)
 
+# (Data dir, obj_num, sub_num)
 def get_data_dirs(grasp_data_dir):
 	good_dirs = get_data_subdirs(grasp_data_dir + "/" + "good")
 	bad_dirs  = get_data_subdirs(grasp_data_dir + "/" + "bad" )
@@ -65,5 +70,20 @@ def get_data_subdirs(root):
 		out_list[idx] = (root + "/" + d, obj_num, sub_num)
 
 	return out_list
+
+def try_bag_open(bag_path):
+	try:
+		b = rosbag.Bag(bag_path, "r")
+		return b
+	except rosbag.bag.ROSBagUnindexedException:
+		print "unindexed bag... Trying to reindex."
+		os.system("rosbag reindex " + bag_path)
+		try:
+			b = rosbag.Bag(bag_path, "r")
+			return b
+		except:
+			print "Could not reindex and open "
+			raise IOError
+
 
 

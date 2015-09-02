@@ -39,7 +39,19 @@ if __name__ == "__main__":
 	while not rospy.is_shutdown():
 		print "obtaining data dir"
 		data_dir, obj_num, sub_num = get_data_dir()
-		extreme_bag = rosbag.Bag(data_dir + "/" + extreme_bag_name , "r")
+
+		defrag_path = data_dir + "_defrag" + "/" + extreme_bag_name
+		extreme_bag_path = data_dir + "/" + extreme_bag_name
+		if os.path.exists(defrag_path):
+			extreme_bag_path = defrag_path
+		elif os.path.exists(extreme_bag_path):
+			rospy.logdebug("Bag found.")
+		else:
+			rospy.logwarn("Snapshot bagfile not found: " + extreme_bag_path)
+			continue
+
+		rospy.loginfo("Opening bag: " + extreme_bag_path)
+		extreme_bag = rosbag.Bag(extreme_bag_path, "r")
 
 		for topic, msg, t in extreme_bag.read_messages(topics=[grasp_extreme_topic]):
 			user_input = raw_input("Press anything to show grasp, n to stop, and s to skip: ")

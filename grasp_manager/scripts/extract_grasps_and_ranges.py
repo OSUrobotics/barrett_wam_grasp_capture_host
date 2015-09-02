@@ -94,7 +94,7 @@ def get_grasp_timestamps(annotation_bag_path):
 				op_str = "e"
 			else:
 				op_str = "o"
-			file_grasp_num = get_grasp_num(msg.data)
+			file_grasp_num = int(get_grasp_num(msg.data))
 			try:
 				relevant_grasp_timestamps[file_grasp_num].append((msg.stamp, file_grasp_num, op_str, task))
 			except KeyError:
@@ -226,7 +226,7 @@ if __name__ == "__main__":
 		print "Data dir: ", data_dir_path
 		# Process results and save to output bag
 		output_bag = rosbag.Bag(output_bag_path, "w")
-		for grasp_set_num in relevant_grasp_timestamps:
+		for grasp_set_num in sorted(relevant_grasp_timestamps.keys()):
 			grasp_set = relevant_grasp_timestamps[grasp_set_num]
 			extreme_num = 0
 			optimal_num = 0
@@ -271,6 +271,7 @@ if __name__ == "__main__":
 				grasp.stamp = grasp_stamp
 				grasp.obj_num = int(obj_num)
 				grasp.sub_num = int(sub_num)
+				print "grasp_abs_num: ", grasp_abs_num
 				grasp.grasp_num = int(grasp_abs_num)
 				grasp.grasp_idx = int(grasp_set_num)
 				if grasp_tuple[2] == "o":

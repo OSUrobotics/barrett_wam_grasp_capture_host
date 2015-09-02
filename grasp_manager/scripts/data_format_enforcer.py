@@ -294,21 +294,6 @@ def split_general_info(bag_dir):
 	robot_bag.close()
 	general_info_bag.close()
 
-def try_bag_open(bag_path):
-	try:
-		b = rosbag.Bag(bag_path, "r")
-		return b
-	except rosbag.bag.ROSBagUnindexedException:
-		rospy.logwarn("unindexed bag... Trying to reindex.")
-		os.system("rosbag reindex " + bag_path)
-		try:
-			b = rosbag.Bag(bag_path, "r")
-			return b
-		except:
-			rospy.logerr("Could not reindex and open " + bag_path)
-			raise IOError
-
-
 if __name__ == "__main__":
 	rospy.init_node("data_format_enforcer")
 	rospy.loginfo("Data format enforcer node online.")
