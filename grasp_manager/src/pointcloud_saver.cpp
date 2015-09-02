@@ -25,12 +25,24 @@ void save_cloud_handler(const grasp_manager::GraspSnapshot::ConstPtr& msg)
 	sensor_msgs::PointCloud2 in_cloud = msg->cloud_image;
 	pcl::moveFromROSMsg(in_cloud, *pcl_cloud);
 
+	// Skip empty clouds (or really sparse clouds)
+	if (pcl_cloud->points.size() < 100) {
+		ROS_WARN("Pointcloud has insufficient points for saving (arbitrary limit). Skipping.");
+		return;
+	}
+		
+
 	// Open pointcloud file
 	string filename = string("obj") + to_string(msg->obj_num) + \
 			  string("_sub") + to_string(msg->sub_num) + \
-			  string("_grasp") + to_string(msg->grasp_num) + \
-			  string("_extreme") + to_string(msg->extreme_num) + \
-			  string("_pointcloud.csv");
+			  string("_grasp") + to_string(msg->grasp_num);
+	if (msg->is_optimal) {
+		filename += string("_optimal") + to_string(msg->optimal_num);
+	} else {
+		filename += string("_extreme") + to_string(msg->extreme_num);
+	}
+	filename += string("_pointcloud.csv");
+
 	ofstream pointcloud_file;
 	pointcloud_file.open(filename, fstream::out | fstream::trunc);
 	if (pointcloud_file.fail() || !pointcloud_file.is_open()) {
