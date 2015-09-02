@@ -4,13 +4,16 @@ time stamp
 # The relevant grasp information
 int32 obj_num
 int32 sub_num
-int32 grasp_num    # If this was the first grasp in a file, this index might not be zero (carryover from prevoius trial)
-int32 grasp_idx    # If this was the first grasp in the file, it would belong to grasp_idx set 0
+int32 grasp_num   
+int32 grasp_idx    
 bool is_optimal
 int32 extreme_num
+int32 optimal_num
+
+string task
 
 # Processed data at the time of the stamp above
-sensor_msgs/PointCloud2 cloud_image
+sensor_msgs/PointCloud2 cloud_image		# May be empty since kinect depth stream was intermittently down
 sensor_msgs/Image rgb_image
 sensor_msgs/Image depth_image
 sensor_msgs/CameraInfo cam_info

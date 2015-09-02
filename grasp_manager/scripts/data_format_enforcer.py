@@ -53,19 +53,20 @@ def find_fragmented_subjects(data_dir, defrag_suffix):
 		# Add to grasp_data_dict with timestamp for sorting
 		if not obj_num in grasp_data_dict.keys():
 			grasp_data_dict[obj_num] = {}
-
-		sample_bag_path = data_dir + "/" + d + "/" + "robot_grasp_annotations.bag"
-		sample_bag = rosbag.Bag(sample_bag_path, "r")
-		bag_info_dict = yaml.load(sample_bag._get_yaml_info())
-		sample_bag.close()
-		relative_stamp = bag_info_dict['start']
+		
+		relative_stamp = None
+		try:
+			relative_stamp = get_dir_relative_timestamp(data_dir + "/" + d)
+		except:
+			continue
+		
 		try:
 			grasp_data_dict[obj_num][sub_num].append((d, relative_stamp))
 		except KeyError:
 			grasp_data_dict[obj_num][sub_num] = [(d, relative_stamp)]
 
 	print "grasp_data_dict: ", grasp_data_dict
-	raw_input("Does that include every directory in the data directory with the start timestamp?")
+	#raw_input("Does that include every directory in the data directory with the start timestamp?")
 
 	# Filter out directories that dont need concatenation
 	frag_list = []
@@ -81,9 +82,31 @@ def find_fragmented_subjects(data_dir, defrag_suffix):
 		l.sort(key=lambda tup: tup[1])
 
 	print "frag list: ", frag_list
-	raw_input("How does that fragmented directory list look? Sorted chronologically?")
+	#raw_input("How does that fragmented directory list look? Sorted chronologically?")
 
 	return frag_list
+
+
+def get_dir_relative_timestamp(base_dir):
+	sample_bag = None
+	sample_bag_path = base_dir + "/" + "human_grasp_annotations.bag"
+	try:
+		sample_bag = try_bag_open(sample_bag_path)
+		bag_info_dict = yaml.load(sample_bag._get_yaml_info())
+		sample_bag.close()
+		return bag_info_dict['start']
+	except:
+		rospy.logwarn("Failed to get first timestamp.")
+		
+		sample_bag_path = base_dir + "/" + "robot_grasp_annotations.bag"
+		try: 
+			sample_bag = try_bag_open(sample_bag_path)
+			bag_info_dict = yaml.load(sample_bag._get_yaml_info())
+			sample_bag.close()
+			return bag_info_dict['start']
+		except:
+			rospy.logerr("No time data available for " + base_dir + ". Must skip to avoid out of order issues.")
+			raise IOError
 
 
 def merge_data(grasp_data_directory, base_file_name, defrag_suffix, frag_dirs):
@@ -96,6 +119,8 @@ def merge_data(grasp_data_directory, base_file_name, defrag_suffix, frag_dirs):
 	concatenate_bags(defrag_dir, frag_dirs, "kinect_robot_capture.bag")
 	concatenate_bags(defrag_dir, frag_dirs, "kinect_hand_capturef.bag")
 	concatenate_bags(defrag_dir, frag_dirs, "kinect_hand_capturel.bag")
+	concatenate_bags(defrag_dir, frag_dirs, "wam_traj.bag")
+	concatenate_bags(defrag_dir, frag_dirs, "hand_commands.bag")
 
 	# Concatenation that requires more analysis
 	concatenate_annotations(defrag_dir, frag_dirs, "human_grasp_annotations.bag", "Human grasp capture start", "Human grasp capture end")
@@ -124,18 +149,17 @@ def concatenate_bags(result_dir, bag_dir_list, bag_name):
 		
 		# Skip bag if duration less than 10 sec
 		try:
-			in_bag = rosbag.Bag(bag_path, 'r')
-		except IOError:
+			in_bag = try_bag_open(bag_path)
+			bag_info_dict = yaml.load(in_bag._get_yaml_info()) 
+			if bag_info_dict['duration'] <= 10:
+				in_bag.close()
+				rospy.loginfo("Skipping " + bag_path  + " with duration " + str(bag_info_dict['duration']))
+				continue
+		except:
 			# No bag present
 			continue
 
-		bag_info_dict = yaml.load(in_bag._get_yaml_info()) 
-		if bag_info_dict['duration'] <= 10:
-			in_bag.close()
-			rospy.loginfo("Skipping " + bag_path  + " with duration " + str(bag_info_dict['duration']))
-			continue
-
-		# Add messages to list
+		# Save messages
 		for topic, msg, t in in_bag.read_messages():
 			out_bag.write(topic, msg, t)
 
@@ -152,8 +176,12 @@ def concatenate_annotations(defrag_dir, frag_dirs, bag_name, start_msg, end_msg)
 		if not os.path.exists(bag_path):
 			rospy.logerr("Directory " + frag_dir + " missing " + bag_name + " file.")
 			continue
-		
-		cur_bag = rosbag.Bag(bag_path, "r")
+		cur_bag = None
+		try:
+			cur_bag = try_bag_open(bag_path)
+		except:
+			continue
+
 		first_grasp_set_msg = True
 		extreme_without_new = False
 		for topic, msg, t in cur_bag.read_messages():
@@ -212,7 +240,7 @@ def reformat_bags(grasp_data_directory):
 	unformatted_dirs.extend(bad_dirs)
 	
 	print "Directories needing bag file formatting assistance: ", unformatted_dirs
-	raw_input("How does that list look?")
+	#raw_input("How does that list look?")
 
 	for d in unformatted_dirs:
 		rospy.loginfo("Splitting data bag file for directory: " + d)
@@ -235,15 +263,24 @@ def get_data_dirs(grasp_data_directory):
 def split_general_info(bag_dir):
 	hand_bag = rosbag.Bag(bag_dir + "/" + "human_grasp_annotations.bag", "w")
 	robot_bag = rosbag.Bag(bag_dir + "/" + "robot_grasp_annotations.bag", "w")
-	general_info_bag = rosbag.Bag(bag_dir + "/" + "general_info.bag", "r")
+	general_info_bag = None
+	try:
+		general_info_bag = try_bag_open(bag_dir + "/" + "general_info.bag")
+	except:
+		return
 
 	save_to_hand_bag = True
 	bag_info_dict = yaml.load(general_info_bag._get_yaml_info())
-	s_time = rospy.Time(bag_info_dict['start'])
+	try:
+		s_time = rospy.Time(bag_info_dict['start'])
+	except KeyError:
+		# No data in bag
+		return
+
 	for topic, msg, t in general_info_bag.read_messages():
 		if "Motion Capture Start" in msg.data:
-			hand_bag.write(topic, StampedString(t, "Human grasp capture end"), t)
-			hand_bag.write(topic, StampedString(s_time, "Human grasp capture start"), s_time)
+			hand_bag.write(topic, StampedString(t, "Human grasp capture end"), t + rospy.Duration(1))
+			hand_bag.write(topic, StampedString(s_time, "Human grasp capture start"), s_time - rospy.Duration(1))
 			save_to_hand_bag = False
 
 		if save_to_hand_bag:
@@ -257,6 +294,20 @@ def split_general_info(bag_dir):
 	robot_bag.close()
 	general_info_bag.close()
 
+def try_bag_open(bag_path):
+	try:
+		b = rosbag.Bag(bag_path, "r")
+		return b
+	except rosbag.bag.ROSBagUnindexedException:
+		rospy.logwarn("unindexed bag... Trying to reindex.")
+		os.system("rosbag reindex " + bag_path)
+		try:
+			b = rosbag.Bag(bag_path, "r")
+			return b
+		except:
+			rospy.logerr("Could not reindex and open " + bag_path)
+			raise IOError
+
 
 if __name__ == "__main__":
 	rospy.init_node("data_format_enforcer")
@@ -266,6 +317,9 @@ if __name__ == "__main__":
 		rospy.logerr("Using home directory, not harddrive.")
 
 	reformat_bags(grasp_data_directory)
+
+	raw_input("Press enter to consolidate fragments.")
+
 	consolidate_fragments(grasp_data_directory + "/" + "good")
 	consolidate_fragments(grasp_data_directory + "/" + "bad")
 

@@ -27,3 +27,43 @@ def set_grasp_num(grasp_message, new_num):
 			grasp_message = grasp_message[:idx]
 
 	return grasp_message + str(new_num)
+
+def get_data_dirs(grasp_data_dir):
+	good_dirs = get_data_subdirs(grasp_data_dir + "/" + "good")
+	bad_dirs  = get_data_subdirs(grasp_data_dir + "/" + "bad" )
+	good_dirs.extend(bad_dirs)
+	print "Data directories to process: ", good_dirs
+
+	return good_dirs
+
+def get_data_subdirs(root):
+	dir_list = os.listdir(root)
+	dir_list = sorted(dir_list)
+
+	# Put the defrag dirs in the list
+	out_list = []
+	for d in dir_list:
+		if "defrag" in d:
+			out_list.append(d)
+
+	for d in dir_list:
+		if not os.path.isdir(root + "/" + d):
+			continue
+		add_list = True
+		for d2 in out_list:
+			if d2.split("_defrag")[0] in d:
+				add_list = False
+
+		if add_list:
+			out_list.append(d)
+
+	# Make them absolute paths
+	for idx, d in enumerate(out_list):
+		name_bits = d.split("_")
+		obj_num = int(name_bits[0][3:])
+		sub_num = int(name_bits[1][3:])
+		out_list[idx] = (root + "/" + d, obj_num, sub_num)
+
+	return out_list
+
+
