@@ -271,7 +271,6 @@ if __name__ == "__main__":
 				grasp.stamp = grasp_stamp
 				grasp.obj_num = int(obj_num)
 				grasp.sub_num = int(sub_num)
-				print "grasp_abs_num: ", grasp_abs_num
 				grasp.grasp_num = int(grasp_abs_num)
 				grasp.grasp_idx = int(grasp_set_num)
 				if grasp_tuple[2] == "o":

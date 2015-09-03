@@ -16,9 +16,6 @@ def get_data_dir():
 def get_grasp_num(grasp_message):
 	msg_bits = grasp_message.split()
 	grasp_num_str = msg_bits[-1]
-	print "grasp_message: ", grasp_message
-	print "msg bits: ", msg_bits
-	print "Grasp num str: ", grasp_num_str
 	try:
 		return int(grasp_num_str)
 	except ValueError:
