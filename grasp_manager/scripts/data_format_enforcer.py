@@ -90,23 +90,21 @@ def find_fragmented_subjects(data_dir, defrag_suffix):
 def get_dir_relative_timestamp(base_dir):
 	sample_bag = None
 	sample_bag_path = base_dir + "/" + "human_grasp_annotations.bag"
-	try:
-		sample_bag = try_bag_open(sample_bag_path)
-		bag_info_dict = yaml.load(sample_bag._get_yaml_info())
-		sample_bag.close()
-		return bag_info_dict['start']
-	except:
-		rospy.logwarn("Failed to get first timestamp.")
-		
-		sample_bag_path = base_dir + "/" + "robot_grasp_annotations.bag"
-		try: 
-			sample_bag = try_bag_open(sample_bag_path)
-			bag_info_dict = yaml.load(sample_bag._get_yaml_info())
-			sample_bag.close()
-			return bag_info_dict['start']
+	bag_list = ['human_grasp_annotations.bag', 'robot_grasp_annotations.bag', 'wam_traj.bag', 'hand_commands.bag', 'kinect_hand_capturef.bag', 'kinect_hand_capturel.bag', 'kinect_robot_capture.bag']
+	for b in bag_list:
+		try:
+			return get_bag_start(base_dir + "/" + b)
 		except:
-			rospy.logerr("No time data available for " + base_dir + ". Must skip to avoid out of order issues.")
-			raise IOError
+			rospy.logwarn("Failed to get first timestamp.")
+		
+	rospy.logerr("No timestamp available for data dir: " + sample_bag_path)
+	raise IOError
+
+def get_bag_start(sample_bag_path):
+	sample_bag = try_bag_open(sample_bag_path)
+	bag_info_dict = yaml.load(sample_bag._get_yaml_info())
+	sample_bag.close()
+	return bag_info_dict['start']
 
 
 def merge_data(grasp_data_directory, base_file_name, defrag_suffix, frag_dirs):

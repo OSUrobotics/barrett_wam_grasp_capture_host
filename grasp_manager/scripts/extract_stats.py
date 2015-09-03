@@ -12,34 +12,33 @@ import csv
 
 from shared_playback import *
 
-class ObjLine:
-	def __init__(self, obj_num):
+# Optimal/Extreme record used to remember peoples' optimal/extreme
+#	counts of a per object basis
+class OERecord:
+	def __init__(self, obj_num, sub_num, optimal_cnt, extreme_cnt):
 		self.obj_num = obj_num
-		self.task = task
-		self.sub_dict = {}
-
-	def get_csv_line(self, sub_list):
-		csv_line = str(obj_num) + ","
-		for sub_num in sub_list:
-			csv_line += self.make_cell_entry(self, sub_num)
-
-		return csv_line
-
-	def make_cell_entry(self, sub_num):
-		try:
-			data = self.sub_dict[sub_num]
-			return str(data.optimal_cnt) + "-" + str(data.extreme_cnt) + ","
-		except:
-			return "0-0,"
-
-
-class GraspSet:
-	def __init__(self, optimal_cnt, extreme_cnt):
+		self.sub_num = sub_num
 		self.optimal_cnt = optimal_cnt
 		self.extreme_cnt = extreme_cnt
+	
+	def make_csv_line(self, field_list):
+		csv_line = ""
+		for f in field_list:
+			if "obj" in f.lower():
+				csv_line += str(self.obj_num) + ","
+			elif "sub" in f.lower():
+				csv_line += str(self.sub_num) + ","
+			elif "optimal" in f.lower():
+				csv_line += str(self.optimal_cnt) + ","
+			elif "extreme" in f.lower():
+				csv_line += str(self.extreme_cnt) + ","
+			else:
+				rospy.logerr("Unknown field name in OERecord: " + f)
 
-class JointDataLine:
-	def __init__(self, obj_num, sub_num, grasp_num, task, is_optimal, oe_num, jnts):
+		return csv_line[:-1] + "\n"
+
+class DataLine:
+	def __init__(self, obj_num, sub_num, grasp_num, task, is_optimal, oe_num, jnts, stamp):
 		self.obj_num = obj_num
 		self.sub_num = sub_num
 		self.grasp_num = grasp_num
@@ -51,6 +50,7 @@ class JointDataLine:
 			self.optimal_extreme_str = "extreme"
 		self.oe_num = oe_num
 		self.hand_jointstate = jnts
+		self.stamp = stamp
 
 	def make_csv_line(self, field_list):
 		csv_line = ""
@@ -67,6 +67,8 @@ class JointDataLine:
 				csv_line += str(self.oe_num) + ","
 			elif "optimality" in f.lower():
 				csv_line += self.optimal_extreme_str + ","
+			elif "stamp" in f.lower():
+				csv_line += self.stamp + ","
 			else:
 				# Ought to be a joint state name
 				try:
@@ -74,67 +76,79 @@ class JointDataLine:
 					csv_line += str(self.hand_jointstate.position[idx]) + ","
 				except ValueError:
 					rospy.logerr("Unexpected field name: " + f + ". skipping.")
-		# Remove the trailing delimiter
+		
+		# Remove the trailing delimiter and add a newline
 		return csv_line[:-1] + "\n"
 
 def get_obj_sub_num_lists(data_dir):
+	(o,s) = get_obj_sub_sets(data_dir + "/" + "good")
+	(o2,s2) = get_obj_sub_sets(data_dir + "/" + "bad")
+
+	o.update(o2)
+	s.update(s2)
+	print "obj set: ", o
+	print "sub set: ", s
+	return (list(o), list(s))
+
+def get_obj_sub_sets(data_dir):
 	dirs = os.listdir(data_dir)
 	obj_num_list = set()
 	sub_num_list = set()
 	
 	for d in dirs:
 		name_bits = d.split("_")
+		print name_bits
 		obj_num_list.add(int(name_bits[0][3:]))
 		sub_num_list.add(int(name_bits[1][3:]))
 
-	return (list(obj_num_list), list(sub_num_list))
+	return (obj_num_list, sub_num_list)
 
 
 
-def extract_nested_table(grasp_data_directory):
+def extract_optimal_extreme_count_table(grasp_data):
+	oe_field_names = ['Object', 'Subject', 'Optimal Count', 'Extreme Count']
+	oe_agg_field_names = ['Object', 'Total Optimal', 'Total Extreme']
 	(obj_num_list, sub_num_list) = get_obj_sub_num_lists(grasp_data_directory)
-	objs = {}
+	oe_dict = {}
 	for obj_num in obj_num_list:
-		objs[obj_num] = ObjLine(obj_num)
-
-	# Harvest the necessary data
-	for obj_num in obj_num_list:
+		oe_dict[obj_num] = {}
 		for sub_num in sub_num_list:
-			data_dir = "obj" + str(obj_num) + "_sub" + str(sub_num)
-			bag_path = grasp_data_directory + "/" + data_dir + "_defrag"
-			# Determine the location of a bag
-			if os.path.exists(bag_path):
-				bag_path += "/grasp_extreme_snapshots.bag"
+			oe_dict[obj_num][sub_num] = OERecord(obj_num, sub_num, 0,0)
 
-			elif os.path.exists(bag_path.split("_defrag")[0]):
-				bag_path = bag_path[0] + "/grasp_extreme_snapshots.bag"
-			else:
-				continue
-			
-			# Open the bag
-			try:
-				in_bag = rosbag.Bag(bag_path)
-			except:
-				continue
+	# Wrangle some data
+	for d in grasp_data:
+		if d.is_optimal:
+			oe_dict[d.obj_num][d.sub_num].optimal_cnt += 1
+		else:
+			oe_dict[d.obj_num][d.sub_num].extreme_cnt += 1
+	
+	# Save the data
+	out_list = []
+	for o in oe_dict:
+		for s in oe_dict[o]:
+			if oe_dict[o][s].extreme_cnt > 0 or oe_dict[o][s].optimal_cnt > 0:
+				out_list.append(oe_dict[o][s])
+	write_csv_table("optimal_extreme_count_master.csv", oe_field_names, out_list)
 
-			# Wrangle some data
-			optimal_count = 0
-			extreme_count = 0
-			for topic, msg, t in in_bag.read_messages():
-				if msg.is_optimal:
-					optimal_count += 1
-				elif msg.is_optimal == False:
-					extreme_count += 1
+	# Aggregate some data
+	agg_out_list = []
+	for obj_num in obj_num_list:
+		obj_agg = OERecord(obj_num, -1, 0, 0)
+		for s in oe_dict[obj_num]:
+			obj_agg.extreme_cnt += oe_dict[obj_num][s].extreme_cnt
+			obj_agg.optimal_cnt += oe_dict[obj_num][s].optimal_cnt
+		agg_out_list.append(obj_agg)
 
-			# Save the data
-			d = GraspSet(optimal_count, extreme_count)
-			obj[obj_num].sub_dict[sub_num] = d
+	write_csv_table("optimal_extreme_agg_master.csv", oe_agg_field_names, agg_out_list)
 
-
-
-def get_joint_value_table(grasp_data_dir):
-	data_dirs = get_data_dirs(grasp_data_dir)
+def get_joint_value_table(grasp_data):
 	field_names = ["Object", "Subject", "Grasp", "Optimality", "Index", "Task", "inner_f1", "inner_f2", "inner_f3", "outer_f1", "outer_f2", "outer_f3", "spread"]
+	
+	write_csv_table("joint_angle_master.csv", field_names, grasp_data)
+
+
+def get_all_data(grasp_data_dir):
+	data_dirs = get_data_dirs(grasp_data_dir)
 	out_lines = []
 	for (data_dir, obj_num, sub_num) in data_dirs:
 		extreme_bag = None
@@ -150,11 +164,11 @@ def get_joint_value_table(grasp_data_dir):
 				oe_num = msg.optimal_num
 			else:
 				oe_num = msg.extreme_num
-			out_lines.append(JointDataLine(obj_num, sub_num, msg.grasp_num, msg.task, msg.is_optimal, oe_num, msg.hand_joints))
+			out_lines.append(DataLine(obj_num, sub_num, msg.grasp_num, msg.task, msg.is_optimal, oe_num, msg.hand_joints, msg.stamp))
 
 		extreme_bag.close()
 
-	write_csv_table("joint_angle_master.csv", field_names, out_lines)
+	return out_lines
 
 def get_extreme_bag(data_dir):
 	snapshot_path = data_dir + "/" + "grasp_extreme_snapshots.bag"
@@ -186,7 +200,10 @@ if __name__ == "__main__":
 	rospy.init_node("extract_stats")
 	rospy.logerr("This file currently makes no separation between natural and pickup tasks.")
 
-	#extract_nested_table(grasp_data_directory)
+	grasp_data = get_all_data(grasp_data_directory)
+
+	# Get basic optimal and extreme counts
+	extract_optimal_extreme_count_table(grasp_data)
 
 	# Get joint value statistics
-	get_joint_value_table(grasp_data_directory)
+	get_joint_value_table(grasp_data)
