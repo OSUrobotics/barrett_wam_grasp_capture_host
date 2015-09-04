@@ -4,6 +4,3 @@
 [submodule "wam_srvs"]
 	path = wam_srvs
 	url = https://github.com/OSUrobotics/wam_srvs.git
-[submodule "bag_tools"]
-	path = bag_tools
-	url = https://github.com/OSUrobotics/bag_tools
