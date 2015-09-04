@@ -1,4 +1,7 @@
 #! /usr/bin/env python
+# Description: Iterates through all available grasp snapshot data (grasp_extreme_snapshots.bag files)
+#	in the directory specified by grasp_data_directory and saves png snapshots to file according
+#	to object number
 import rospy
 import rosbag
 
@@ -17,7 +20,6 @@ if __name__ == "__main__":
 	# Get data directories
 	data_dirs = get_data_dirs(grasp_data_directory)
 
-	# Go through and make sub directories for each grasp extreme list
 	for (data_dir_path, obj_num, sub_num) in data_dirs:
 		extreme_bag = None
 		try:
@@ -26,12 +28,15 @@ if __name__ == "__main__":
 			rospy.loginfo("Troubling opening extreme bag in dir " + data_dir_path)
 			continue
 
+		# Distinguish between good and bad directory paths
 		pic_dir_name = "obj" + str(obj_num)
 		if "good" in data_dir_path:
 			pic_path = grasp_pic_dir + "/good/" + pic_dir_name
 		else:	
 			pic_path = grasp_pic_dir + "/bad/" + pic_dir_name
 		
+		# Create a directory for the object and store all relevant
+		#	grasp pictures in it
 		if not os.path.exists(pic_path):
 			os.makedirs(pic_path)
 		rospy.loginfo("Processing " + data_dir_path)
@@ -47,6 +52,7 @@ if __name__ == "__main__":
 			if os.path.exists(rgb_path):
 				continue
 
+			# Write the image to disk
 			rospy.loginfo("Writing " + pic_name)
 			rgb_image = cv_bridge.imgmsg_to_cv2(msg.rgb_image)
 			cv2.imwrite(rgb_path, rgb_image)

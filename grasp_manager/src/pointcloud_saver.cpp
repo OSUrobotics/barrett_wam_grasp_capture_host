@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include "grasp_manager/GraspSnapshot.h"
+#include "grasp_manager/SaveCloud.h"
 #include "sensor_msgs/PointCloud2.h"
 #include "pcl/ros/conversions.h"
 #include <pcl_ros/transforms.h>
@@ -18,20 +19,18 @@ using std::endl;
 using std::to_string;
 using std::cout;
 
-void save_cloud_handler(const grasp_manager::GraspSnapshot::ConstPtr& msg)
+// Prototypes
+void save_cloud(sensor_msgs::PointCloud2* cloud, string path);
+
+bool save_cloud_handler(grasp_manager::SaveCloud::Request& req,
+			grasp_manager::SaveCloud::Response& res)
 {
-	// Change pointcloud types
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
-	sensor_msgs::PointCloud2 in_cloud = msg->cloud_image;
-	pcl::moveFromROSMsg(in_cloud, *pcl_cloud);
+	save_cloud(&(req.cloud), req.path);
+	return true;
+}
 
-	// Skip empty clouds (or really sparse clouds)
-	if (pcl_cloud->points.size() < 100) {
-		ROS_WARN("Pointcloud has insufficient points for saving (arbitrary limit). Skipping.");
-		return;
-	}
-		
-
+void save_cloud_cb(const grasp_manager::GraspSnapshot::ConstPtr& msg)
+{
 	// Open pointcloud file
 	string filename = string("obj") + to_string(msg->obj_num) + \
 			  string("_sub") + to_string(msg->sub_num) + \
@@ -43,10 +42,28 @@ void save_cloud_handler(const grasp_manager::GraspSnapshot::ConstPtr& msg)
 	}
 	filename += string("_pointcloud.csv");
 
+	sensor_msgs::PointCloud2 c(msg->cloud_image);
+	save_cloud(&c, filename);
+}
+
+void save_cloud(sensor_msgs::PointCloud2* cloud, string path)
+{
+	// Change pointcloud types
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::moveFromROSMsg(*cloud, *pcl_cloud);
+
+	// Skip empty clouds (or really sparse clouds)
+	if (pcl_cloud->points.size() < 100) {
+		ROS_WARN("Pointcloud has insufficient points for saving (arbitrary limit). Skipping.");
+		return;
+	}
+		
+
 	ofstream pointcloud_file;
-	pointcloud_file.open(filename, fstream::out | fstream::trunc);
+	pointcloud_file.open(path, fstream::out | fstream::trunc);
 	if (pointcloud_file.fail() || !pointcloud_file.is_open()) {
-		ROS_ERROR("Cannot open pointcloud csv file for saving.");
+		ROS_ERROR_STREAM("Cannot open pointcloud csv file for saving: " << path);
+		return;
 	}
 
 	// Save points
@@ -75,7 +92,9 @@ int main(int argc, char** argv) {
 	cout << "Pointcloud saver node online!" << endl;
 
 	// Establish simple pointcloud reorientation service
-	ros::Subscriber service = nh.subscribe("/grasp_extremes", 1, save_cloud_handler);
+	//ros::Subscriber subby = nh.subscribe("/grasp_extremes", 1, save_cloud_cb);
+	
+	ros::ServiceServer service = nh.advertiseService("save_ptcloud_csv", save_cloud_handler);
 	ros::spin();
 
 	return EXIT_SUCCESS;
