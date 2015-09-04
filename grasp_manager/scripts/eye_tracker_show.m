@@ -3,7 +3,7 @@
 %   second view of the scene. This program will open the inputted avi file
 %   for the test being aligned and show specific time slices.
 
-[filename, pathname] = uigetfile({'*.wav'},'Select the audio of trial' ...
+[filename, pathname] = uigetfile('*.wav','Select the audio of trial' ...
     ,'/media');
 %grasp_data_dir = '/media/eva/FA648F24648EE2AD/grasp_data/';
 %good_or_bad = input('good or bad?: ');
@@ -16,7 +16,7 @@ if (filename ~= 0)
     
     %values of 100 ms windows, with spike threshold of one have worked well
     %in the algorithm. 
-    firstVidBeep = detectBeep(strcat(filename, pathname),5000,1/10,1);
+    firstVidBeep = detectBeep(strcat(pathname,filename),5000,1/10,1);
 
     %calculate time in minutes, seconds, milliseconds
     remainder = mod(firstVidBeep,60);
@@ -27,41 +27,45 @@ if (filename ~= 0)
 end
 
 %find annotation file  
-[filename, pathname] = uigetfile('*.xls','Select the annotation file' ...
+[filename, pathname] = uigetfile('*.csv','Select the annotation file' ...
     ,pathname);
 
 if (filename ~= 0)
     %uses xls read, these can't be read with csvread for some reason
-    [stamps, msgs] = xlsread(strcat(pathname,filename));
+    csv_matrix = read_mixed_csv(strcat(pathname,filename),',');
     
     % Find the stamp of the beep relative to the bag files
-    mocap_idx = -1;
-    for i = 0:length(msgs)
-        if strncmpi('Motion Capture', msgs, 10) == 1
-               mocap_idx = i;
-        end
-    end
-    
-    vid_start_in_bagtime = stamps(mocap_idx) - firstVidBeep;
+    %mocap_idx = -1;
+
+    %for i = 1:size(columns,1)
+    %    if strncmpi('Motion Capture', columns, 10) == 1
+    %           mocap_idx = i;
+    %    end
+    %end
+    mocap_idx = strmatch('Motion Capture Start', csv_matrix(:,3))
+  
+    vid_start_in_bagtime = (str2double(csv_matrix(mocap_idx,2)))/(10^9) - firstVidBeep;
     
     % Print out messages for reference
     fprintf('CSV messages:');
-    for i = 0:length(msgs)
-        fprintf('%f %s\n', stamps(i), msgs(i));
-    end
+    %for i = 0:length(msgs)
+    %    fprintf('%f %s\n', stamps(i), msgs(i));
+    %end
+    Frames_with_timestamp = csv_matrix(:,2:3)
+
 end
 
 % Open the eye tracking video
-[avi_filename, avi_pathname] = uigetfile('*.avi','Select the eye tracking video file' ...
+[avi_filename, avi_pathname] = uigetfile('*.mp4','Select the eye tracking video file' ...
     ,pathname);
 eye_tracking_movie = VideoReader(strcat(avi_pathname, avi_filename));
 
 while 1
     stamp = input('Input the timestamp you would like to see: ');
-    eye_track_time = str2double(stamp) - vid_start_in_bagtime
+    eye_track_time = stamp/(10^9) - vid_start_in_bagtime
     
     % Get a frame at that time
     eye_tracking_movie.CurrentTime = eye_track_time;
-    frame = eye_tracking_movie.readframe()
+    frame = eye_tracking_movie.readFrame();
     imshow(frame)
 end
