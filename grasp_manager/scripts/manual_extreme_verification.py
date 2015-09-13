@@ -1,16 +1,18 @@
 #! /usr/bin/env python
 import rospy
 
+from std_msgs.msg import Header
 from sensor_msgs.msg import JointState, Image
 from grasp_manager.msg import GraspSnapshot
 from wam_msgs.msg import HandCommand
-from wam_srvs.srv import JointMove
+from wam_srvs.srv import JointMove, CartPosMove
 
 from shared_playback import *
 
 import os
 import csv
 import copy
+import time
 
 out_suffix = "_extreme_verification.csv"
 similar_dir = os.path.expanduser("~") + "/grasp_similarities"
@@ -24,7 +26,7 @@ def get_testable_objects(similar_dir):
 			csv_file = csv.reader(in_file, delimiter=",")
 			for l in csv_file:
 				try:
-					obj_sub_tuples.add((int(l[0]), int(l[1]), f))
+					obj_sub_tuples.add((int(l[0]), int(l[1])))
 				except ValueError:
 					pass
 
@@ -74,24 +76,32 @@ def mk_out_file_path(obj_num, sub_num):
 	return str(out_dir + "/" + "obj" + str(obj_num) + "_sub" + str(sub_num) + out_suffix)
 
 def run_trial(ros_dict, snapshot, hand_cmd):
-	ros_dict['rgb_show'].publish(snapshot.rgb_image)
+	for i in range(5):
+		ros_dict['rgb_show'].publish(snapshot.rgb_image)
 	# Move the arm
 	raw_input("Press [Enter] to move the arm.")
 	ros_dict['wam_jnt_srv'](snapshot.wam_joints.position)
-	rospy.logerr("Cannot move the arm to those joints. Closing csv file and wrapping up.")
 	
 	raw_input("Place the object in the proper location and press [Enter]")
 	republish_hand_command(ros_dict['hand_cmd_pub'], hand_cmd)
+	raw_input("Press [Enter] to execute grasp.")
+	shake_wam(ros_dict)
+
+def shake_wam(ros_dict):
+	rospy.loginfo("Initiating shake.")
+	base_pose = [-.7, -.3, .15]
+	end_pose = [-.7, -.3, .35]
+	
+	for i in range(4):
+		rospy.loginfo("Shaking once.")
+		ros_dict['cart_move_srv'](base_pose)
+		time.sleep(2)
+		ros_dict['cart_move_srv'](end_pose)
+		time.sleep(2)
 
 def reset_trial(ros_dict):
 	# Open the hand
-	republish_hand_command(ros_dict['hand_cmd_pub'], HandCommand(0,0,0,0))
-
-	# Send the wam home
-	#try:
-	#	ros_dict['wam_reset']()
-	#except:
-	#	rospy.logerr("Could not send the wam home.")
+	republish_hand_command(ros_dict['hand_cmd_pub'], HandCommand(Header(0, rospy.Time.now(), ''), 0,0,0,0))
 
 if __name__ == "__main__":
 	rospy.init_node("manual_extreme_verification")
@@ -102,12 +112,13 @@ if __name__ == "__main__":
 	obj_sub_tuples = remove_finished(similar_dir, obj_sub_tuples)
 	
 	ros_dict = {}
-	ros_dict['rgb_show'] = rospy.Publisher("/grasp_rgb", Image, queue_size=1)
+	ros_dict['rgb_show'] = rospy.Publisher("/grasp_rgb", Image, queue_size=1, latch=True)
 	ros_dict['hand_cmd_pub'] = rospy.Publisher("/bhand/hand_cmd", HandCommand, queue_size=1)
 
-	#rospy.loginfo("Waiting for joint motion service.")
-	#rospy.wait_for_service()
-	ros_dict['wam_jnt_srv'] = rospy.ServiceProxy("/wam/jnt_move", JointMove)
+	rospy.loginfo("Waiting for joint motion service.")
+	rospy.wait_for_service('/wam/joint_move')
+	ros_dict['wam_jnt_srv'] = rospy.ServiceProxy("/wam/joint_move", JointMove)
+	ros_dict['cart_move_srv'] = rospy.ServiceProxy("/wam/cart_move", CartPosMove)
 
 	if not os.path.exists(out_dir):
 		os.makedirs(out_dir)
@@ -134,11 +145,12 @@ if __name__ == "__main__":
 		# Find those darn extremes
 		out_file = open(mk_out_file_path(t[0], t[1]), "a")
 		out_csv = csv.DictWriter(out_file, base_fields, delimiter=",")
+		out_csv.writeheader()
 		for topic, msg, t in b.read_messages():
 			if msg.is_optimal == True:
 				rospy.loginfo("Skipping optimal")
 				continue
-
+			
 			out_row = copy.deepcopy(base_dict)
 			out_row['object'] = msg.obj_num
 			out_row['subject'] = msg.sub_num
@@ -147,17 +159,26 @@ if __name__ == "__main__":
 			hand_cmd = get_hand_command(base_path, msg.stamp)
 			
 			for i in range(5):
+				reset_trial(ros_dict)
+				rospy.loginfo("Testing trial %d OF obj %d sub %d grasp %d idx %d" % (i, msg.obj_num, msg.sub_num, msg.grasp_num, msg.extreme_num))
 				out_row['trial'] = i
-				run_trial(ros_dict, msg, hand_cmd)
+				try:
+					run_trial(ros_dict, msg, hand_cmd)
+				except:
+					rospy.logerr("Could not finish trial.")
+					break
 				while True:
 					user_input = raw_input("Success? (y/n): ")
-					if "n" in user_input.lower():
+					if "y" in user_input.lower():
 						out_row['success'] = 1
-					elif "y" in user_input.lower():
+					elif "n" in user_input.lower():
 						out_row['success'] = 0
 					else:
 						rospy.logwarn("Unrecognized input")
 						continue
 					break
 
+				out_csv.writerow(out_row)
+
+		out_file.close()
 
