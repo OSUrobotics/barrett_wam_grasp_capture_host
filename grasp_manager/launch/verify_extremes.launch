@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+	<node pkg="grasp_manager" type="manual_extreme_verification.py" name="manual_extreme_verification" output="screen" />
+	<node name="bhand_sliders" type="bhand_sliders.py" pkg="bhand_sliders" output="screen" launch-prefix="gnome-terminal -e"/>
+
+	<node name="kinect2_bridge" type="kinect2_bridge" pkg="kinect2_bridge" output="screen" launch-prefix="gnome-terminal -e"/>
+
+	<node name="rviz" type="rviz" pkg="rviz" />
+	<node name="object_visualizer" type="object_visualizer_driver.py" pkg="barrett_hand_control" output="screen" launch-prefix="gnome-terminal -e" />
+</launch>
