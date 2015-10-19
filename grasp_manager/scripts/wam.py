@@ -22,7 +22,7 @@ class WAM:
 		self.wam_sftp = None
 		self.wam_jnt_topic = "/wam_grasp_capture/recording/joint_states"
 		self.wam_traj_name = "wam_traj.bag"
-		self.wam_traj_location = "/tmp/" + wam_traj_name
+		self.wam_traj_location = "/tmp/" + self.wam_traj_name
 		self.cur_wam_pose = None
 		self.init_wam_sftp()
 		
@@ -40,7 +40,7 @@ class WAM:
 		move_wam = rospy.ServiceProxy("/wam/cart_move", CartPosMove)
 		orient_wam = rospy.ServiceProxy("/wam/ortn_move", OrtnMove)
 
-	def init_wam_sftp():
+	def init_wam_sftp(self):
 		rospy.loginfo("Initializing WAM SFTP connection.")
 
 		client = paramiko.SSHClient()

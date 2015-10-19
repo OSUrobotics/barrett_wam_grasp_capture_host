@@ -96,7 +96,7 @@ class GraspCapture:
 		self.human_kinect_bag_path = self.cur_grasp_data.get_log_dir() + "kinect_hand_capturef.bag"
 		self.init_human_phase()
 
-	def recording_gui_update(self)
+	def recording_gui_update(self):
 		disable_gui_elements(self.gui, ["_robot_phase_first", "_human_phase_first"])
 		enable_gui_elements(self.gui, ["_end_phase"])
 		self.gui.register_button_cb("_end_phase", self.cleanup_recording)
@@ -183,7 +183,7 @@ class GraspCapture:
 		self.gui.disable_element("_end_phase")
 		self.gui.enable_element("_begin_next_phase")
 			
-	def cleanup_second_phase(self)
+	def cleanup_second_phase(self):
 		self.cleanup_recording()
 		self.gui.disable_element("_begin_next_phase")
 		
