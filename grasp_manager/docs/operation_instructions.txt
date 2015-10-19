@@ -1,6 +1,6 @@
 ## Operating the WAM arm for grasp recording study (Summer 2015)
 
-SSH Traits:
+SSH Info:
 	robot system name: WAM
 	username: robot
 	password: WAM
