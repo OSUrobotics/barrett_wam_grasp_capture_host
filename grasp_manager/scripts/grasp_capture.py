@@ -43,7 +43,7 @@ class GraspCapture:
 		rospy.init_node("grasp_capture")
 		print "Grasp logging node online."
 		
-		sounder_pub = rospy.Publisher("/make_beep", EmptyM, queue_size=1)
+		self.sounder_pub = rospy.Publisher("/make_beep", EmptyM, queue_size=1)
 
 	def set_data_storage_path(self):
 		global grasp_info_dir, harddrive_path, local_data_path
@@ -102,12 +102,14 @@ class GraspCapture:
 		self.gui.register_button_cb("_end_phase", self.cleanup_recording)
 
 	def robot_phase_second(self):
+		self.gui.disable_element("_begin_next_phase")
 		self.gui.show_info("Starting robot phase.")
 		self.init_robot_phase()
 		self.gui.enable_element("_end_phase")
 		self.gui.register_button_cb("_end_phase", self.cleanup_second_phase)
 
 	def human_phase_second(self):
+		self.gui.disable_element("_begin_next_phase")
 		self.gui.show_info("Starting human phase.")
 		self.init_human_phase()
 		self.gui.enable_element("_end_phase")
@@ -119,12 +121,12 @@ class GraspCapture:
 		global kinect_data_topics
 		rospy.loginfo("Beginning robot capture phase.")
 		self.cur_grasp_data.start_robot_grasp_annotations()
-		kinect_monitor.block_for_kinect()
-		kinect_monitor.start_monitor()
+		self.kinect_monitor.block_for_kinect()
+		self.kinect_monitor.start_monitor()
 		
-		cur_grasp_data.add_annotation("Motion Capture Start")	
-		logging_dir = cur_grasp_data.get_log_dir()
-		sounder_pub.publish()
+		self.cur_grasp_data.add_annotation("Motion Capture Start")	
+		logging_dir = self.cur_grasp_data.get_log_dir()
+		self.sounder_pub.publish()
 		self.hand_logger.start_hand_capture();
 		self.wam.start_recording(logging_dir)
 		self.kinect_bag_id = self.bag_manager.start_recording(logging_dir + "kinect_robot_capture.bag", kinect_data_topics)[0]
@@ -137,7 +139,7 @@ class GraspCapture:
 		self.kinect_monitor.block_for_kinect()
 		self.kinect_monitor.start_monitor()
 		
-		sounder_pub.publish(EmptyM())
+		self.sounder_pub.publish(EmptyM())
 		self.cur_grasp_data.start_human_grasp_annotations()
 		self.kinect_bag_id = self.bag_manager.start_recording(self.human_kinect_bag_path, kinect_data_topics)[0]
 		time.sleep(0.1)
@@ -146,13 +148,25 @@ class GraspCapture:
 		self.human_recording = True
 
 	def cleanup_recording(self):
+		self.gui.disable_element("_end_phase")
+		print "CLEANUP CALLED"
 		if self.robot_recording:
 			# Stop the robot recording
 			#TODO: Integrate the GUI with the annotations interface
 			self.cur_grasp_data.add_annotation("Motion Capture End")
 			self.kinect_monitor.stop_monitor()
-			self.wam.finish_recording()
 			self.hand_logger.end_hand_capture();
+			self.cur_grasp_data.stop_grasp_annotations()
+			
+			try:
+				ret = self.wam.finish_recording()
+			except BagManagerStopException as e:
+				rospy.logerr(str(e))
+				self.gui.show_error(str(e))
+			except NotRecordingException as e:
+				rospy.logerr(str(e))
+				self.gui.show_error(str(e))
+			
 			try:
 				self.bag_manager.stop_recording(self.kinect_bag_id)
 			except:
@@ -169,33 +183,29 @@ class GraspCapture:
 			self.kinect_monitor.stop_monitor()
 		
 			self.bag_manager.stop_recording(self.kinect_bag_id)
-			self.cur_grasp_data.stop_human_grasp_annotations()
+			self.cur_grasp_data.stop_grasp_annotations()
 			
-
 			self.gui.register_button_cb("_begin_next_phase", self.robot_phase_second)
 			self.gui.show_info("Completed cleaning up human capture.")
+			print "Setting human recording to false."
 			self.human_recording = False
 		else:
 			rospy.logerr("No capture session going, but cleanup_recording() was called!")
 			self.gui.show_error("No capture session going, but cleanup_recording() was called!")
 			return
 
-		self.gui.disable_element("_end_phase")
 		self.gui.enable_element("_begin_next_phase")
 			
 	def cleanup_second_phase(self):
-		self.cleanup_recording()
 		self.gui.disable_element("_begin_next_phase")
+		self.cleanup_recording()
 		
-		# Save grasping data
-		self.cur_grasp_data.add_annotation("Bag file closing. End final grasp set.")
-		self.cur_grasp_data.close_info_file()
-
 		# Move home
 		self.gui.show_info("Moving WAM home.")
-		self.wam.move_wam_home(wam_home_srv)
+		self.wam.move_wam_home()
 
 		# Get ready for another trial
+		self.gui.show_error("")
 		self.gui.show_info("Trial complete. Press New Trial to begin another trial.")
 		self.cur_grasp_data = None
 		self.gui.enable_element("_new_trial")
@@ -272,7 +282,7 @@ class GraspData:
 	
 	def start_human_grasp_annotations(self):
 		rospy.loginfo("Starting human grasp_annotations.")
-		self.human_grasp_annotation_id = self.bag_manager.start_recording(self.human_grasp_path, [self.annotations_topic])[0]
+		self.annotation_id = self.bag_manager.start_recording(self.human_grasp_path, [self.annotations_topic])[0]
 
 	def add_annotation(self, annotation_string):
 		self.annotations_pub.publish(rospy.Time.now(), annotation_string)
@@ -308,15 +318,12 @@ class GraspData:
 	def get_log_dir(self):
 		return (self.instance_dir + '/')
 
-	def close_info_file(self):
+	def stop_grasp_annotations(self):
+		self.add_annotation("Bag file closing. End final grasp set.")
+		time.sleep(0.1)
 		ret = self.bag_manager.stop_recording(self.annotation_id)
 		if ret[0]:
-			print "Grasp info file closed."
-
-	def stop_human_grasp_annotations(self):
-		ret = self.bag_manager.stop_recording(self.human_grasp_annotation_id)
-		if ret[0]:
-			print "Human grasp annotations file closed."
+			rospy.loginfo("Grasp annotations file closed.")
 		
 
 # Performs a walk through the grasp info directory to find the 

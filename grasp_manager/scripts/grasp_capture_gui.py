@@ -74,6 +74,7 @@ class App(BaseWidget):
 
 	def register_button_cb(self, button_id, callback):
 		try:
+			exec("self." + button_id + "._form.pushButton.disconnect()")
 			exec("self." + button_id + ".value = callback")
 		except:
 			self.show_error("DEVELOPER MSG: cannot register button " + button_id + ".")
