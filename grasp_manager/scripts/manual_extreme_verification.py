@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 import rospy
 
-from std_msgs.msg import Header
+from std_msgs.msg import Header, Int32MultiArray
 from sensor_msgs.msg import JointState, Image
 from grasp_manager.msg import GraspSnapshot
 from wam_msgs.msg import HandCommand
@@ -79,7 +79,7 @@ def run_trial(ros_dict, snapshot, hand_cmd):
 	for i in range(5):
 		ros_dict['rgb_show'].publish(snapshot.rgb_image)
 	# Move the arm
-	raw_input("Press [Enter] to move the arm.")
+	#raw_input("Press [Enter] to move the arm.")
 	ros_dict['wam_jnt_srv'](snapshot.wam_joints.position)
 	
 	raw_input("Place the object in the proper location and press [Enter]")
@@ -89,15 +89,18 @@ def run_trial(ros_dict, snapshot, hand_cmd):
 
 def shake_wam(ros_dict):
 	rospy.loginfo("Initiating shake.")
-	base_pose = [-.7, -.3, .15]
-	end_pose = [-.7, -.3, .35]
-	
+	base_pose = [-.7, -.1, .15]
+	end_pose = [-.7, -.1, .35]
+
+	velocity = rospy.get_param("/wam/velocity")
+	sleep_time = 1 / velocity
+
 	for i in range(4):
 		rospy.loginfo("Shaking once.")
 		ros_dict['cart_move_srv'](base_pose)
-		time.sleep(2)
+		time.sleep(sleep_time)
 		ros_dict['cart_move_srv'](end_pose)
-		time.sleep(2)
+		time.sleep(sleep_time)
 
 def reset_trial(ros_dict):
 	# Open the hand
@@ -113,7 +116,8 @@ if __name__ == "__main__":
 	
 	ros_dict = {}
 	ros_dict['rgb_show'] = rospy.Publisher("/grasp_rgb", Image, queue_size=1, latch=True)
-	ros_dict['hand_cmd_pub'] = rospy.Publisher("/bhand/hand_cmd", HandCommand, queue_size=1)
+	ros_dict['hand_cmd_pub'] = rospy.Publisher("/bhand/hand_cmd", HandCommand, queue_size=1, latch=True)
+	ros_dict['openrave_show'] = rospy.Publisher("/openrave_grasp_view", Int32MultiArray, queue_size=1, latch=True)
 
 	rospy.loginfo("Waiting for joint motion service.")
 	rospy.wait_for_service('/wam/joint_move')
@@ -150,7 +154,11 @@ if __name__ == "__main__":
 			if msg.is_optimal == True:
 				rospy.loginfo("Skipping optimal")
 				continue
-			
+		
+			user_input = raw_input("About to start obj %d sub %d grasp %d idx %d (s to skip, anything else to continue):" % (msg.obj_num, msg.sub_num, msg.grasp_num, msg.extreme_num))
+			if "s" in user_input.lower():
+				continue
+
 			out_row = copy.deepcopy(base_dict)
 			out_row['object'] = msg.obj_num
 			out_row['subject'] = msg.sub_num
@@ -158,15 +166,24 @@ if __name__ == "__main__":
 			out_row['idx'] = msg.extreme_num
 			hand_cmd = get_hand_command(base_path, msg.stamp)
 			
-			for i in range(5):
+			i = 0
+			while i < 5:
 				reset_trial(ros_dict)
 				rospy.loginfo("Testing trial %d OF obj %d sub %d grasp %d idx %d" % (i, msg.obj_num, msg.sub_num, msg.grasp_num, msg.extreme_num))
 				out_row['trial'] = i
+
+				vis_msg = Int32MultiArray()
+				vis_msg.data.extend([msg.obj_num, msg.sub_num, msg.grasp_num, msg.extreme_num])
+				ros_dict['openrave_show'].publish(vis_msg)
 				try:
 					run_trial(ros_dict, msg, hand_cmd)
 				except:
 					rospy.logerr("Could not finish trial.")
-					break
+					user_input = raw_input("b to break trial and r to retry: ")
+					if "b" in user_input.lower():
+						break
+					if "r" in user_input.lower():
+						continue
 				while True:
 					user_input = raw_input("Success? (y/n): ")
 					if "y" in user_input.lower():
@@ -177,7 +194,7 @@ if __name__ == "__main__":
 						rospy.logwarn("Unrecognized input")
 						continue
 					break
-
+				i += 1
 				out_csv.writerow(out_row)
 
 		out_file.close()
