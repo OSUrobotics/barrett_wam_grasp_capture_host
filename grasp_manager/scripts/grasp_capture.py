@@ -17,8 +17,6 @@ import paramiko
 from bag_manager import BagManager
 from shared_globals import *
 
-#grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
-#grasp_info_dir = "/media/sonny/FA648F24648EE2AD/grasp_data"	# The fully qualified path to the grasp data
 cur_wam_pose = None
 prelog_hand_pose = [0,0,0,0]
 wam_jnt_topic = "/wam_grasp_capture/recording/joint_states"
@@ -26,74 +24,264 @@ wam_traj_name = "wam_traj.bag"
 wam_traj_location = "/tmp/" + wam_traj_name
 wam_sftp = None
 wam_ssh = None
-#kinect_topic_prefix = "/kinect2/qhd/"
-#kinect_data_topics = [kinect_topic_prefix + "image_color_rect/compressed", kinect_topic_prefix + "image_depth_rect/compressed"]
 
 class PoseMoveException(Exception):
 	def __init__(self, req_pos):
 		self.req_pos = req_pos
 	def __str__(self):
 		return str(self.req_pos)
+
+
+#TODO: Factor out the wam class into its own file
+
+# Returns None or a number
+def get_gui_int(gui, control_id, data_name):
+	try:
+		num = int(gui.get_text(control_id))
+		return num
+	except:
+		gui.show_error(data_name + " must be a number")
+	
+	return None
+
+# To be used when starting/completing a component of the workflow
+def enable_gui_elements(gui, control_id_list):
+	for e in control_id_list:
+		gui.enable_element(e)
+
+# The same as enable_gui_elements except it disables elements
+def disable_gui_elements(gui, control_id_list):
+	for e in control_id_list:
+		gui.disable_element(e)
+
+
+# Elements to be enabled when a workflow phase is started
+#	and then disabled when that phase is complete
+workflow_gui_elements = {'new_trial_elements':["_new_trial", "_good_bad", "_sub_num", "_obj_num", "_begin_trial"] }
+
+class GraspCapture:
+	def __init__(self, gui):
+		self.gui = gui
+
+		self.init_ros_interface()
+		self.set_data_storage_path()
+
+		verify_data_directories()
+		self.gui = gui
+		rospy.logerr("SKIPPING WAM CONNECTION. NEEDS TO BE UNDONE LATER.")
+		#self.wam = WAM()
+		self.bag_manager = BagManager()
+		self.hand_logger = HandLogger(self.bag_manager)
+		self.kinect_monitor = KinectMonitor(kinect_data_topics[1])
+
+
+		wam_home_srv = rospy.ServiceProxy('/wam/go_home', Empty)
+		record_start_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_start', EmptyM, queue_size=1)
+		record_stop_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_stop', EmptyM, queue_size=1)
+		playback_load_srv = rospy.ServiceProxy('/wam_grasp_capture/jnt_playback_load', JointRecordPlayback)
+		playback_start_pub = rospy.Publisher('/wam_grasp_capture/jnt_playback_start', EmptyM, queue_size=1)
+		playback_stop_pub = rospy.Publisher('/wam_grasp_capture/jnt_playback_stop', EmptyM, queue_size=1)
+		hand_playback_start_pub = rospy.Publisher('start_hand_playback', String, queue_size=1)
+		hand_playback_stop_pub = rospy.Publisher('stop_hand_playback', EmptyM, queue_size=1)
+		hand_cmd_blk_srv = rospy.ServiceProxy("/bhand/hand_cmd_blocking", HandCommandBlk)
+		
+		gravity_comp_srv = rospy.ServiceProxy("/wam/gravity_comp", GravityComp)
+		
+		self.cur_grasp_data = None
+
+		# Create the synchronization constructs
+		self.robot_recording = False
+		self.human_recording = False
+
+	def init_ros_interface(self):
+		rospy.init_node("grasp_capture")
+		print "Grasp logging node online."
+		
+		sounder_pub = rospy.Publisher("/make_beep", EmptyM, queue_size=1)
+
+	def set_data_storage_path(self):
+		global grasp_info_dir, harddrive_path, local_data_path
+		if os.path.exists(harddrive_path):
+			grasp_info_dir = harddrive_path
+			self.gui.show_error("Using harddrive for storage.")
+			rospy.loginfo("Using harddrive.")
+		else:
+			grasp_info_dir = local_data_path
+			self.gui.show_error("Not using harddrive for storage. Using local")
+			rospy.logerr("Not using harddrive for storage. Using local")
+
+#############################
+###### Main Workflow ########
+#############################
+	def start_new_trial(self):
+		# Ensure that the old trial has ended
+		if self.cur_grasp_data != None:
+			self.gui.show_error("Current grasp trial not complete. Not beginning new trial")
+			return
+
+		# Setup the next trial data structures
+		self.cur_grasp_data = GraspData(self.gui, self.bag_manager)
+		self.gui.show_info("Beginning new trial.")
+		self.gui.disable_element("_new_trial")
+		self.gui.register_button_cb("_begin_trial", self.validate_trial_and_begin)
+	
+	def validate_trial_and_begin(self):
+		if not self.cur_grasp_data.make_data_dir():
+			return
+
+		self.hand_logger.set_log_dir(self.cur_grasp_data.get_log_dir())
+		self.gui.disable_element("_begin_trial")
+		enable_gui_elements(self.gui, ["_robot_phase_first", "_human_phase_first"])
+		self.gui.register_button_cb("_robot_phase_first", self.robot_phase_first)
+		self.gui.register_button_cb("_human_phase_first", self.human_phase_first)
+
+	def robot_phase_first(self):
+		self.gui.show_info('Beginning robot grasp phase.')
+		disable_gui_elements(self.gui, ["_robot_phase_first", "_human_phase_first"])
+		enable_gui_elements(self.gui, ["_end_phase"])
+		self.gui.register_button_cb("_end_phase", self.cleanup_recording)
+		
+		self.human_kinect_bag_path = self.cur_grasp_data.get_log_dir() + "kinect_hand_capturel.bag"
+		self.init_robot_phase()
+
+
+	def human_phase_first(self):
+		self.gui.show_info("Starting human phase.")
+		disable_gui_elements(self.gui, ["_robot_phase_first", "_human_phase_first"])
+		enable_gui_elements(self.gui, ["_end_phase"])
+		self.gui.register_button_cb("_end_phase", self.cleanup_recording)
+		
+		self.human_kinect_bag_path = self.cur_grasp_data.get_log_dir() + "kinect_hand_capturef.bag"
+		self.init_human_phase()
+
+	def robot_phase_second(self):
+		self.gui.show_info("Starting robot phase.")
+		self.init_robot_phase()
+
+	def human_phase_second(self):
+		self.gui.show_info("Starting human phase.")
+
+		self.init_human_phase()
+
+
+	# Sets up the robot grasp capture phase:
+	#	Saving data structures, kinect connection, etc...
+	def init_robot_phase(self):
+		rospy.loginfo("Beginning robot capture phase.")
+
+		self.robot_recording = True
+
+	def init_human_phase(self):
+		global kinect_data_topics
+		rospy.loginfo("Beginning human capture phase.")
+		self.kinect_monitor.block_for_kinect()
+		self.kinect_monitor.start_monitor()
+		
+		sounder_pub.publish(EmptyM())
+		self.cur_grasp_data.start_human_grasp_annotations()
+		kinect_bag_id = self.bag_manager.start_recording(self.human_kinect_bag_path, kinect_data_topics)[0]
+		time.sleep(0.1)
+		self.cur_grasp_data.add_annotation("Human grasp capture start.")
+
+		self.human_recording = True
+
+	def cleanup_recording(self):
+		if self.robot_recording:
+			# Stop the robot recording
+			#TODO:Stop the robot recording
+			self.gui.register_button_cb("_begin_next_phase", self.human_phase_second)
+			self.gui.show_info("Completed cleaning up robot capture.")
+			self.robot_recording = False
+
+		elif self.human_recording:
+			# Stop the human recording
+			#TODO: Integrate the GUI with the annotations interface.
+			#cur_grasp_data.add_annotations("Press [Enter] to complete kinect hand data recording.")
+			self.cur_grasp_data.add_annotation("Human grasp capture end.")
+			self.kinect_monitor.stop_monitor()
+		
+			self.bag_manager.stop_recording(kinect_bag_id)
+			self.cur_grasp_data.stop_human_grasp_annotations()
+			
+
+			self.gui.register_button_cb("_begin_next_phase", self.robot_phase_second)
+			self.gui.show_info("Completed cleaning up human capture.")
+			self.human_recording = False
+		else:
+			rospy.logerr("No capture session going, but cleanup_recording() was called!")
+			self.gui.show_error("No capture session going, but cleanup_recording() was called!")
+			return
+
+		self.gui.disable_element("_end_phase")
+		self.gui.enable_element("_begin_next_phase")
+			
+# An interface to the WAM data collection and control mechanisms
+class WAM:
+	def __init__(self):
+		init_wam_sftp()
 		
 
 class GraspData:
-	def __init__(self, sounder_pub, bag_manager):
-		self.grasp_set_num = 0
+	def __init__(self, gui, bag_manager):
+		self.gui = gui
 		self.bag_manager = bag_manager
+		self.initialized = False
+		self.grasp_set_num = 0
 		
-		self.make_data_dir()
+		self.general_info = {}
+		self.general_info['date'] = str(datetime.date.today())
+		
+		self.workflow_elements = ["_new_trial", "_good_bad", "_sub_num", "_obj_num", "_begin_trial"]
+		enable_gui_elements(self.gui, self.workflow_elements)
+
+		
+	# Create the directory for this subject/object's grasp trial data
+	# Returns: True on success and False on failure
+	def make_data_dir(self):
+		gb = self.gui.get_text("_good_bad") #raw_input("Is this grasp good or bad? (g/b): ")
+		
+		# Get the object number
+		obj_num = get_gui_int(self.gui, "_obj_num", "object number")
+		if obj_num == None or obj_num < 0:
+			self.gui.show_error("object number must be greater than zero.")
+			return False
+
+		# Get the subject number
+		sub_num = get_gui_int(self.gui, "_sub_num", "subject number")
+		if sub_num == None or sub_num < 0:
+			self.gui.show_error("subject number must be greater than zero.")
+			return False
+
+		# Form the directory name
+		base_dir = "obj" + str(obj_num) + "_sub" + str(sub_num)
+		if gb == "good":
+			self.instance_dir = grasp_info_dir + "/good/" + base_dir
+		else:
+			self.instance_dir = grasp_info_dir + "/bad/" + base_dir 
+
+		# Create the directory
+		if os.path.exists(self.instance_dir):
+			rospy.logwarn("Grasping directory already exists. Appending unique id.")
+			suffix_num =  get_cur_grasp_num("/".join(self.instance_dir.split("/")[0:-1]), base_dir)
+
+			self.instance_dir += "_" + suffix_num
+		os.mkdir(self.instance_dir, 0755)
+
+		print "Created current test's data directory: ", self.instance_dir
+		self.gui.show_info("Created current test's data directory: " + self.instance_dir)
+		self.finish_init()
+		self.initialized = True
+		return True
+
+	def finish_init(self):
 		self.info_file_path = self.instance_dir + "/" + "robot_grasp_annotations.bag"
 		self.human_grasp_path = self.instance_dir + "/" + "human_grasp_annotations.bag"
 		self.annotations_topic = "/grasp_annotations"
 		self.annotations_pub = rospy.Publisher(self.annotations_topic, StampedString, queue_size=1)
-		self.sounder_pub = sounder_pub
 
-		self.general_info = {}
-		self.general_info['name'] = ""
-		self.general_info['date'] = str(datetime.date.today())
-		self.general_info['annotations'] = []
-
-	def make_data_dir(self):
-		while True:
-			gb = None
-			while True:
-				gb = raw_input("Is this grasp good or bad? (g/b): ")
-				gb = gb.lower().strip()
-				if gb == "g" or gb == "b":
-					break
-			
-			obj_num = -1
-			while True:
-				try:
-					obj_num = int(raw_input("Please enter the object number: "))
-					break
-				except:
-					pass
-	
-			subject_num = -1
-			while True:
-				try:
-					subject_num = int(raw_input("Please enter a subject id#: "))
-					if subject_num >= 0:
-						break
-				except:
-					pass
-	
-			base_dir = "obj" + str(obj_num) + "_sub" + str(subject_num)
-			if gb == "g":
-				self.instance_dir = grasp_info_dir + "/good/" + base_dir
-			else:
-				self.instance_dir = grasp_info_dir + "/bad/" + base_dir 
-	
-			if os.path.exists(self.instance_dir):
-				rospy.logwarn("Grasping directory already exists. Appending unique id.")
-				self.instance_dir += "_" + get_cur_grasp_num("/".join(self.instance_dir.split("/")[0:-1]), base_dir)
-				break
-			else:
-				break
-
-		os.mkdir(self.instance_dir, 0755)
-		print "Created current test's data directory: ", self.instance_dir
+		# Disable gui components
+		self.gui.show_error("")
+		disable_gui_elements(self.gui, self.workflow_elements)
 
 	def start_robot_grasp_annotations(self):
 		rospy.loginfo("Starting robot grasp annotations.")
@@ -151,13 +339,15 @@ class GraspData:
 # Performs a walk through the grasp info directory to find the 
 #	highest value unused directory
 # Preconditions: the grasp_dir must be a fully qualified path
+# Returns: An index higher than 1. 1 is reserved for renaming fragmented
+#	directories during post processing. See processing scripts
 def get_cur_grasp_num(grasp_dir, base_name):
 	files = os.listdir(grasp_dir)
 	if files == []:
 		return 0
 
 	nums = []
-	f_max = 1
+	f_max = 2
 	for f in files:
 		pre_slash = "_".join(f.split("_")[0:-1])
 		if pre_slash == base_name:
@@ -405,36 +595,7 @@ def init_wam_sftp():
 	wam_sftp = paramiko.SFTPClient.from_transport(client.get_transport())
 
 
-def kinect_hand_capture(sounder_pub, cur_grasp_data, hand_first, kinect_monitor, bag_manager):
-	global kinect_data_topics
-
-	kinect_monitor.block_for_kinect()
-	kinect_monitor.start_monitor()
-	rospy.loginfo("Beginning kinect data capture for hand")
-	logging_directory = cur_grasp_data.get_log_dir()
-
-	
-	hand_str = ""
-	if hand_first:
-		hand_str = "f"
-	else:
-		hand_str = "l"
-	kinect_bag_path = logging_directory + "kinect_hand_capture" + hand_str + ".bag"
-
-
-	sounder_pub.publish(EmptyM())
-	cur_grasp_data.start_human_grasp_annotations()
-	kinect_bag_id = bag_manager.start_recording(kinect_bag_path, kinect_data_topics)[0]
-	time.sleep(0.1)
-	cur_grasp_data.add_annotation("Human grasp capture start.")
-
-	cur_grasp_data.add_annotations("Press [Enter] to complete kinect hand data recording.")
-	cur_grasp_data.add_annotation("Human grasp capture end.")
-	kinect_monitor.stop_monitor()
-	
-	bag_manager.stop_recording(kinect_bag_id)
-	cur_grasp_data.stop_human_grasp_annotations()
-
+#def kinect_hand_capture(sounder_pub, cur_grasp_data, hand_first, kinect_monitor, bag_manager):
 
 def commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, grasp_dir):
 	global wam_traj_name
@@ -459,106 +620,66 @@ def move_wam_home(wam_home_srv):
 
 
 
-if __name__ == "__main__":
-	rospy.init_node("grasp_capture")
-	print "Grasp logging node online."
-
-	if grasp_info_dir.find("FA648F24648EE2AD") == -1:
-		rospy.logerr("Not using harddrive for storage. Using local")
-
-	#cur_grasp_num = get_cur_grasp_num(grasp_info_dir)
-	#print "Cur grasp num: ", cur_grasp_num
-	cur_grasp_num = 0
-	verify_data_directories()
-	init_wam_sftp()
-
-	kinect_monitor = KinectMonitor(kinect_data_topics[1])
-	bag_manager = BagManager()
-
-	wam_home_srv = rospy.ServiceProxy('/wam/go_home', Empty)
-	record_start_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_start', EmptyM, queue_size=1)
-	record_stop_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_stop', EmptyM, queue_size=1)
-	playback_load_srv = rospy.ServiceProxy('/wam_grasp_capture/jnt_playback_load', JointRecordPlayback)
-	playback_start_pub = rospy.Publisher('/wam_grasp_capture/jnt_playback_start', EmptyM, queue_size=1)
-	playback_stop_pub = rospy.Publisher('/wam_grasp_capture/jnt_playback_stop', EmptyM, queue_size=1)
-	hand_playback_start_pub = rospy.Publisher('start_hand_playback', String, queue_size=1)
-	hand_playback_stop_pub = rospy.Publisher('stop_hand_playback', EmptyM, queue_size=1)
-	hand_cmd_blk_srv = rospy.ServiceProxy("/bhand/hand_cmd_blocking", HandCommandBlk)
-	
-	gravity_comp_srv = rospy.ServiceProxy("/wam/gravity_comp", GravityComp)
-	
-	sounder_pub = rospy.Publisher("/make_beep", EmptyM, queue_size=1)
-
-	hand_logger = HandLogger(bag_manager)
-
-
-	# Main Workflow
-	kinect_hand_cap_before_mocap = None
-	while not rospy.is_shutdown():
-		cur_grasp_data = GraspData(sounder_pub, bag_manager)
-		hand_logger.set_log_dir(cur_grasp_data.get_log_dir())
-		
-		# Query the order of human hand motion capture and robot motion capture
-		researcher_input = raw_input("Hand motion capture before robot motion capture?(y/n)")
-		if researcher_input.strip().lower() == "y":
-			kinect_hand_cap_before_mocap = True
-			kinect_hand_capture(sounder_pub, cur_grasp_data, kinect_hand_cap_before_mocap, kinect_monitor, bag_manager)
-			raw_input("End the eye tracking! Then press [Enter]")
-		else:
-			kinect_hand_cap_before_mocap = False
-
-
-		# Begin motion capture
-		raw_input("Press [Enter] to start the motion capture")
-		cur_grasp_data.start_robot_grasp_annotations()
-		kinect_monitor.block_for_kinect()
-		kinect_monitor.start_monitor()
-		cur_grasp_data.add_annotation("Motion Capture Start")
-		sounder_pub.publish()
-		setup_hand(hand_cmd_blk_srv)
-		hand_logger.start_hand_capture();
-		record_start_pub.publish(EmptyM())
-		wam_bag_id = bag_manager.start_recording(cur_grasp_data.get_log_dir() + wam_traj_name, [wam_jnt_topic])[0]
-		kinect_bag_id = bag_manager.start_recording(cur_grasp_data.get_log_dir() + "kinect_robot_capture.bag", kinect_data_topics)[0]
-
-		# End motion capture
-		cur_grasp_data.add_annotations("Press [Enter] to end the motion capture")
-		cur_grasp_data.add_annotation("Motion Capture End")
-		kinect_monitor.stop_monitor()
-		record_stop_pub.publish()
-		hand_logger.end_hand_capture();
-		try:
-			bag_manager.stop_recording(kinect_bag_id)
-			bag_manager.stop_recording(wam_bag_id)
-		except:
-			rospy.logerr("Trouble closing the kinect data file at end of motion capture.")
-	
-		if not kinect_hand_cap_before_mocap:
-			raw_input("End the eye tracking! Then press [Enter]")
-
-		# Move the hand to the ledge
-		#handle_transport_object(cur_grasp_data, gravity_comp_srv)
-		
-		# Playback trial
-		#commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, cur_grasp_data.get_log_dir())
-
-		# Save grasping data
-		cur_grasp_data.add_annotation("Bag file closing. End final grasp set.")
-		cur_grasp_data.close_info_file()
-
-		# Move home
-		move_wam_home(wam_home_srv)
-
-		# If we didn't capture the hand before, do it now
-		if not kinect_hand_cap_before_mocap:
-			raw_input("Press [Enter] to begin kinect capture for human grasps.")
-			kinect_hand_capture(sounder_pub, cur_grasp_data, kinect_hand_cap_before_mocap, kinect_monitor, bag_manager)
-
-		repeat_input = raw_input("Would you like to run another test? (y/n)")
-		if repeat_input.lower().strip() != "y":
-			break
-		else:
-			cur_grasp_num += 1
-	
-	kinect_monitor.kill_monitor()
-	rospy.loginfo("Grasp testing complete =)")
+#if __name__ == "__main__":
+#		# Query the order of human hand motion capture and robot motion capture
+#		researcher_input = raw_input("Hand motion capture before robot motion capture?(y/n)")
+#		if researcher_input.strip().lower() == "y":
+#			kinect_hand_cap_before_mocap = True
+#			kinect_hand_capture(sounder_pub, cur_grasp_data, kinect_hand_cap_before_mocap, kinect_monitor, bag_manager)
+#			raw_input("End the eye tracking! Then press [Enter]")
+#		else:
+#			kinect_hand_cap_before_mocap = False
+#
+#
+#		# Begin motion capture
+#		raw_input("Press [Enter] to start the motion capture")
+#		cur_grasp_data.start_robot_grasp_annotations()
+#		kinect_monitor.block_for_kinect()
+#		kinect_monitor.start_monitor()
+#		cur_grasp_data.add_annotation("Motion Capture Start")
+#		sounder_pub.publish()
+#		setup_hand(hand_cmd_blk_srv)
+#		hand_logger.start_hand_capture();
+#		record_start_pub.publish(EmptyM())
+#		wam_bag_id = bag_manager.start_recording(cur_grasp_data.get_log_dir() + wam_traj_name, [wam_jnt_topic])[0]
+#		kinect_bag_id = bag_manager.start_recording(cur_grasp_data.get_log_dir() + "kinect_robot_capture.bag", kinect_data_topics)[0]
+#
+#		# End motion capture
+#		cur_grasp_data.add_annotations("Press [Enter] to end the motion capture")
+#		cur_grasp_data.add_annotation("Motion Capture End")
+#		kinect_monitor.stop_monitor()
+#		record_stop_pub.publish()
+#		hand_logger.end_hand_capture();
+#		try:
+#			bag_manager.stop_recording(kinect_bag_id)
+#			bag_manager.stop_recording(wam_bag_id)
+#		except:
+#			rospy.logerr("Trouble closing the kinect data file at end of motion capture.")
+#	
+#		if not kinect_hand_cap_before_mocap:
+#			raw_input("End the eye tracking! Then press [Enter]")
+#
+#		# Move the hand to the ledge
+#		#handle_transport_object(cur_grasp_data, gravity_comp_srv)
+#		
+#		# Playback trial
+#		#commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, cur_grasp_data.get_log_dir())
+#
+#		# Save grasping data
+#		cur_grasp_data.add_annotation("Bag file closing. End final grasp set.")
+#		cur_grasp_data.close_info_file()
+#
+#		# Move home
+#		move_wam_home(wam_home_srv)
+#
+#		# If we didn't capture the hand before, do it now
+#		if not kinect_hand_cap_before_mocap:
+#			raw_input("Press [Enter] to begin kinect capture for human grasps.")
+#			kinect_hand_capture(sounder_pub, cur_grasp_data, kinect_hand_cap_before_mocap, kinect_monitor, bag_manager)
+#
+#		repeat_input = raw_input("Would you like to run another test? (y/n)")
+#		if repeat_input.lower().strip() != "y":
+#			break
+#	
+#	kinect_monitor.kill_monitor()
+##	rospy.loginfo("Grasp testing complete =)")
