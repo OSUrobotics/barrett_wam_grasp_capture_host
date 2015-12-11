@@ -21,6 +21,9 @@ if __name__ == "__main__":
 	os.system("cp ./chrony.conf /etc/chrony/")
 	os.system("service chrony restart")
 
+	# Get GUI library for capture workflow
+	os.system("pip install pyforms")
+
 	# To be done later... DHCP
 #	if os.path.exists("/etc
 

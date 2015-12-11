@@ -3,7 +3,7 @@ import paramiko
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Empty as EmptyM
 from wam_srvs.srv import HandCommandBlkRequest, HandCommandBlkResponse, HandCommandBlk, JointRecordPlayback, CartPosMove, CartPosMoveRequest, CartPosMoveResponse, GravityComp, GravityCompRequest, GravityCompResponse, PoseMove, PoseMoveRequest, PoseMoveResponse, OrtnMove, OrtnMoveRequest, OrtnMoveResponse
-from std_msgs.msg import Empty as EmptyM
+from std_srvs.srv import Empty, EmptyRequest, EmptyResponse
 import sys
 
 class PoseMoveException(Exception):
@@ -11,6 +11,18 @@ class PoseMoveException(Exception):
 		self.req_pos = req_pos
 	def __str__(self):
 		return str(self.req_pos)
+
+class BagManagerStopException(Exception):
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "Could not stop bag manager from recording wam joint angles."
+
+class NotRecordingException(Exception):
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "WAM class was not recording. Yet it has been asked to stop."
 
 
 # An interface to the WAM data collection and control mechanisms
@@ -24,11 +36,14 @@ class WAM:
 		self.wam_traj_name = "wam_traj.bag"
 		self.wam_traj_location = "/tmp/" + self.wam_traj_name
 		self.cur_wam_pose = None
+		self.transport_wam_pose = None
+
 		self.init_wam_sftp()
 		
 		# Start up the ros interface
 		rospy.loginfo("Waiting for wam services.")
 		rospy.wait_for_service("/wam/cart_move")
+		rospy.loginfo("Found wam services.")
 		self.wam_home_srv = rospy.ServiceProxy('/wam/go_home', Empty)
 		self.record_start_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_start', EmptyM, queue_size=1)
 		self.record_stop_pub = rospy.Publisher('/wam_grasp_capture/jnt_record_stop', EmptyM, queue_size=1)
@@ -67,21 +82,20 @@ class WAM:
 
 	def start_recording(self, logging_dir):
 		self.record_start_pub.publish(EmptyM())
-		self.wam_bag_id = self.bag_manager.start_recording(logging_dir + wam_traj_name, [wam_jnt_topic])[0]
+		self.wam_bag_id = self.bag_manager.start_recording(logging_dir + self.wam_traj_name, [self.wam_jnt_topic])[0]
 		self.recording = True
 
 	def finish_recording(self):
 		if not self.recording:
-			return False
-		
-		record_stop_pub.publish()
+			raise NotRecordingException()
+	
+		rospy.loginfo("Stopping wam joint recording.")
+		self.record_stop_pub.publish()
 		try:
 			self.bag_manager.stop_recording(self.wam_bag_id)
 		except:
-			rospy.logerr("Trouble stopping the wam joint angle recording.")
+			raise BagManagerStopException()
 
-		return True
-	
 	def move_wam_traj_onboard(self, bag_location):
 		if self.wam_sftp == None:
 			rospy.logerr("Cannot place wam trajectory on WAM because sftp connection is non-existant.")
@@ -134,7 +148,8 @@ class WAM:
 		while cur_wam_pose == None:
 			rospy.sleep(sleep_period)
 			continue
-		
+		self.transport_wam_pose = self.cur_wam_pose
+
 		try:
 			sleep_period = rospy.Duration(1)
 			command_wam_pose_move([0, 0, 0.3])
@@ -154,16 +169,16 @@ class WAM:
 			return False
 		
 		self.gravity_comp_srv(True)
-		cur_wam_pose = None
+		self.transport_wam_pose = None
 		return True
 
 	def wam_pose_cb(self, msg):
 		global cur_wam_pose
-		rospy.loginfo("Got current wam pose.")
+		#rospy.loginfo("Got current wam pose.")
 		self.cur_wam_pose = msg.pose
 
 	def command_wam_pose_move(self, adjustments):
-		xyz = self.cur_wam_pose
+		xyz = self.transport_wam_pose
 		xyz.x += adjustments[0]
 		xyz.y += adjustments[1]
 		xyz.z += adjustments[2]
@@ -176,7 +191,7 @@ class WAM:
 
 	def command_wam_ortn_move(self):
 		rospy.logwarn("command wam ortn move needs an exception wrapper")
-		ros_quat = self.cur_wam_pose.orientation
+		ros_quat = self.transport_wam_pose.orientation
 		res = self.orient_wam([ros_quat.x, ros_quat.y, ros_quat.z, ros_quat.w])
 	
 	def move_wam_home(self):

@@ -16,7 +16,7 @@ class App(BaseWidget):
 		self.add_order_choice_elements()
 		self.add_capture_elements()
 
-		self._formset = ["_info_box", "_error_box", ("_new_trial", "_good_bad", "_obj_num", "_sub_num", "_begin_trial"), ("_robot_phase_first", "_human_phase_first"), ("_end_phase", "_begin_next_phase")]
+		self._formset = ["_info_box", "_error_box", ("_new_trial", "_good_bad", "_obj_num", "_sub_num", "_begin_trial"), ("_robot_phase_first", "_human_phase_first"), ("_end_phase", "_begin_next_phase"), ("_new_grasp", "_optimal_grasp", "_extreme_grasp"), ("_start_natural", "_rotation_symm")]
 
 		# Create the control structures and hook them up
 		self.grasp_capture = grasp_capture.GraspCapture(self)
@@ -49,6 +49,18 @@ class App(BaseWidget):
 		self.disable_element("_end_phase")
 		self.disable_element("_begin_next_phase")
 
+		self._new_grasp = ControlButton("New Grasp")
+		self._extreme_grasp = ControlButton("Add Extreme Grasp")
+		self._optimal_grasp = ControlButton("Add Optimal Grasp")
+		self._rotation_symm = ControlButton("Add Rotational Symmetry")
+		self._start_natural = ControlButton("Start Natural Task")
+
+		self.disable_element("_new_grasp")
+		self.disable_element("_extreme_grasp")
+		self.disable_element("_optimal_grasp")
+		self.disable_element("_rotation_symm")
+		self.disable_element("_start_natural")
+
 ###########################
 ### Application GUI API ###
 ###########################
@@ -72,8 +84,16 @@ class App(BaseWidget):
 		except:
 			self.show_error("DEVELOPER MSG: trying to enable element " + control_id + " doesn't exist.")
 
+	def is_enabled(self, control_id):
+		try:
+			return eval("self." + control_id + ".enabled")
+		except:
+			self.show_error("DEVELOPER MSG: control element does not exist. Cannot check enabled status.")
+			return False
+
 	def register_button_cb(self, button_id, callback):
 		try:
+			exec("self." + button_id + "._form.pushButton.disconnect()")
 			exec("self." + button_id + ".value = callback")
 		except:
 			self.show_error("DEVELOPER MSG: cannot register button " + button_id + ".")
