@@ -1,0 +1,57 @@
+## Operating the WAM arm for grasp recording study (Summer 2015)
+
+SSH Traits:
+	robot system name: WAM
+	username: robot
+	password: WAM
+
+	ssh command: "ssh wam"
+
+# Software Overview:
+	wam_node.launch:
+		The wam node controls all mechanical operations for the wam and initiates the ROS interface for control. The wam node is also responsible for wam joint recording. These trajectories are moved from the wam to the host computer between each test via SFTP
+
+	run_host.launch:
+		This is the main controlling launch file. It starts:
+			grasp_capture.py: the command and control interface. Takes user commands and implements the main workflow.
+			bhand_sliders.py: Listens to the arduino via USB for changes in the sliders and the rotating potentiometer. Converts these values to finger closures and spread angles.
+			sounder.py: Issues synchronizing sounds on the host computer
+			bag_tools: a rosbag API listening for topics in the form of strings sent to the bag_record topic.
+			sounder.py
+
+# Network Information
+	For now, the WAM gets its ip address from the small trendnet router on its side. If the wam cannot connect to the router, it never recevies an IP address adn can never be reached. Note, even if the black router is connected to the WM, it may take up to 30 seconds for the WAM to get an ip address, so be patient.
+
+Setup for a New Computer:
+	In a terminal on your computer, run "ifconfig" and verify that your wireless network connection (wlan0) has the ip address 192.168.109.101
+
+	In a terminal on the WAM, open the hosts file
+		sudo vim /etc/hosts 
+	and verify that the name of your computer is in the hosts file on its own line in the form
+		192.168.109.101	myComputerName
+	with the above ip address (my computer is called eureka, which I know because when I log in, I get the prompt "jack@eureka:~"
+
+Verify Setup on a New Computer:
+	In a terminal on the WAM try to ping the host computer:
+		ping myComputerName
+	Ping should start printing roundtrip times in the low milliseconds after 1-2 seconds of stalling
+
+
+# Running the setup
+	On a host computer terminal, run:
+		roscore
+
+	Log into the wam via ssh and run:
+		export ROS_MASTER_URI="http://YOURCOMPUTERNAMEGOESHERE:11311"
+		roslaunch wam_node wam_node.launch
+	
+	On the host computer, open a new terminal and run:
+		roslaunch grasp_manager run_host.launch
+
+	On the host computer, open a new terminal and run:
+		sudo -s
+		source ~/catkin_ws/devel/setup.bash
+		rosrun bhand_sliders bhand_sliders.py
+	
+	Go to the wam_node.launch terminal and follow its instructions to ininitialize the wam (it should go something like: "idle the WAM, set it in its home position, activate the WAM")
+	If the wam activates and the hand initializes, the setup procedure should be complete. Go to the grasp_replication.py terminal and follow its instructions to commence testing.
