@@ -38,6 +38,8 @@ Verify Setup on a New Computer:
 	On a host computer terminal, run:
 		roscore
 
+	Using the network manager, ensure that you are on the "WAM" network.
+	
 	Log into the wam via ssh and run:
 		. set_master_sonny
 		roslaunch wam_node wam_node.launch
