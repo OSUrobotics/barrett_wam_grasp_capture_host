@@ -16,6 +16,7 @@ import paramiko
 
 from bag_manager import BagManager
 from shared_globals import *
+from wam_playback import *
 
 #grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
 #grasp_info_dir = "/media/sonny/FA648F24648EE2AD/grasp_data"	# The fully qualified path to the grasp data
@@ -26,6 +27,7 @@ wam_traj_name = "wam_traj.bag"
 wam_traj_location = "/tmp/" + wam_traj_name
 wam_sftp = None
 wam_ssh = None
+wam_traj_dir = os.path.expanduser("~") + "/wam_tool_design_trajectories"
 #kinect_topic_prefix = "/kinect2/qhd/"
 #kinect_data_topics = [kinect_topic_prefix + "image_color_rect/compressed", kinect_topic_prefix + "image_depth_rect/compressed"]
 
@@ -239,10 +241,24 @@ class HandLogger:
 		self.bag_id = None
 		self.log_dir = None
 
+def commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, grasp_dir, wam_traj_name):
+	user_input = raw_input("Playback? (y/n): ")
+	if user_input.lower().strip() == "y":
+		print "Beginning playback."
+		bag_file = grasp_dir + wam_traj_name
+		try:
+			setup_playback(hand_cmd_blk_srv, playback_load_srv, bag_file)
+			playback_start_pub.publish(EmptyM())
+			hand_playback_start_pub.publish(grasp_dir + hand_logger.bag_name)
+			raw_input("Press [Enter] when playback is complete.")
+		except:
+			rospy.logerr("Playback aborted.")
+			pass	
+
 # Resets the hand and WAM arm
 def setup_playback(hand_cmd_blk_srv, wam_load_srv, bag_file):
 	global wam_traj_location
-	setup_hand(hand_cmd_blk_srv)
+	#setup_hand(hand_cmd_blk_srv)
 
 	move_wam_traj_onboard(bag_file)
 	wam_load_srv(wam_traj_location, wam_jnt_topic)
@@ -274,6 +290,7 @@ def move_wam_traj_onboard(bag_location):
 	except Exception as e:
 		rospy.logerr("Trouble moving wam trajectory onto WAM from host.")
 		print e.what()
+
 
 def move_wam_traj_offboard(dest_path):
 	global wam_sftp, wam_traj_location
@@ -436,26 +453,62 @@ def kinect_hand_capture(sounder_pub, cur_grasp_data, hand_first, kinect_monitor,
 	cur_grasp_data.stop_human_grasp_annotations()
 
 
-def commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, grasp_dir):
-	global wam_traj_name
-	user_input = raw_input("Playback? (y/n): ")
-	if user_input.lower().strip() == "y":
-		print "Beginning playback."
-		bag_file = grasp_dir + wam_traj_name
-		try:
-			setup_playback(hand_cmd_blk_srv, playback_load_srv, bag_file)
-			playback_start_pub.publish(EmptyM())
-			hand_playback_start_pub.publish(grasp_dir + hand_logger.bag_name)
-			raw_input("Press [Enter] when playback is complete.")
-		except:
-			rospy.logerr("Playback aborted.")
-			pass	
-
 def move_wam_home(wam_home_srv):
-	try:
+	#try:
 		wam_home_srv(EmptyRequest())
-	except:
-		rospy.logerr("Can't move the WAM home...")
+	#except:
+	#	rospy.logerr("Can't move the WAM home...")
+
+
+def do_record(record_start_pub, record_stop_pub, bag_manager, wam_jnt_topic):
+    global wam_traj_dir
+    raw_bag_name = raw_input("Name of recording (empty to cancel): ")
+    if raw_bag_name != "":
+        bag_name = wam_traj_dir + '/' + raw_bag_name + ".bag"
+        if os.path.exists(bag_name):
+            print "Bag already exists, skipping."
+            return
+        
+        print "Moving WAM to zero position." 
+        move_wam_home(wam_home_srv)
+        record_start_pub.publish(EmptyM())
+        wam_bag_id = bag_manager.start_recording(bag_name, [wam_jnt_topic])[0]
+
+        u_input = raw_input("Press enter to stop recording.")
+	record_stop_pub.publish()
+	bag_manager.stop_recording(wam_bag_id)
+        print "Recording complete."
+    else:
+        print "Empty input detected, skipping."
+
+
+def do_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, wam_traj_name, wam_home_srv):
+    global wam_traj_dir
+    playback_files = os.listdir(wam_traj_dir)
+    print "Playback files: ", playback_files
+    u_input = raw_input("Please enter the name of the file to playback: ")
+    if u_input != "":
+            bag_path = wam_traj_dir + '/' + u_input
+            if not os.path.exists(bag_path):
+                print "Could not open file! Skipping"
+                return
+
+            print "Moving WAM to zero position." 
+	    move_wam_home(wam_home_srv)
+	    
+            print "Commencing playback"
+            while True:
+	        setup_playback(hand_cmd_blk_srv, playback_load_srv, bag_path)
+                playback_start_pub.publish(EmptyM())
+                usr_input = raw_input("Repeat ([Enter] for yes, q for no): ")
+                if usr_input != '':
+                    break
+
+            print "playback complete."
+            #raw_input("Press enter to move wam home.")
+	    #move_wam_home(wam_home_srv)
+    else:
+        print "Empty input detected. Skipping."
 
 
 
@@ -491,7 +544,20 @@ if __name__ == "__main__":
 
 	hand_logger = HandLogger(bag_manager)
 
+        while True:
+            usr_input = raw_input("Would you like to record or playback a WAM trajectory? (r - record, p - playback, q- quit): ")
+            if usr_input.lower() == 'r':
+                do_record(record_start_pub, record_stop_pub, bag_manager, wam_jnt_topic)
+            elif usr_input.lower() == 'p':
+                do_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, wam_traj_name, wam_home_srv)
+            elif usr_input.lower() == 'q':
+                break
+            else:
+                print "Invalid input detected."
+        print "Senior design playback/recording complete."
+    
 
+def not_using_this_for_senior_design_DO_NOT_MERGE_INTO_MAINLINE():
 	# Main Workflow
 	kinect_hand_cap_before_mocap = None
 	while not rospy.is_shutdown():
@@ -540,7 +606,7 @@ if __name__ == "__main__":
 		#handle_transport_object(cur_grasp_data, gravity_comp_srv)
 		
 		# Playback trial
-		#commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, cur_grasp_data.get_log_dir())
+		#commence_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, hand_playback_start_pub, hand_logger, cur_grasp_data.get_log_dir(), wam_traj_name)
 
 		# Save grasping data
 		cur_grasp_data.add_annotation("Bag file closing. End final grasp set.")
