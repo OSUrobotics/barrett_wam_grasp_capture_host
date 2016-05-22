@@ -8,6 +8,16 @@
 
 	In a new terminal run
 		rosrun grasp_manager extract_grasps_and_ranges.py
+	to extract stl files for ICP, run
+		rosrun barrett_hand_control stl_generator.py
+
+	?? To extract pointclouds for ICP ??
+
+	to extract images of optimal and extreme grasps in hoes of human insight moments:
+		rosrun grasp_manager extract_pictures.py
+
+	to perform manual alignment, run 
+		roslaunch barrett_hand_control manual_alignment.py
 
 # Troubleshooting:
 	Error: "No data recorded for key ptcloud" in extract_grasps_and_ranges.py
