@@ -100,6 +100,7 @@ target_link_libraries(depth_decompressor ${catkin_LIBRARIES})
 
 add_executable(pointcloud_transformer src/pointcloud_transformer.cpp)
 target_link_libraries(pointcloud_transformer ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_dependencies(pointcloud_transformer grasp_data_msgs_generate_messages_cpp)
 
 add_executable(pointcloud_saver src/pointcloud_saver.cpp)
 target_link_libraries(pointcloud_saver ${catkin_LIBRARIES} ${PCL_LIBRARIES})
