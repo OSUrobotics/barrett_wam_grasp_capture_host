@@ -1,5 +1,6 @@
 import rospy
 import rosbag
+import sys
 from shared_globals import *
 
 extreme_bag_name = "grasp_extreme_snapshots.bag"
@@ -40,8 +41,12 @@ def get_data_dirs(grasp_data_dir):
 	return good_dirs
 
 def get_data_subdirs(root):
-	dir_list = os.listdir(root)
-	dir_list = sorted(dir_list)
+	try:
+		dir_list = os.listdir(root)
+		dir_list = sorted(dir_list)
+	except OSError:
+		rospy.logerr("No grasp data directories found. Current storage location: %s" % root)
+		sys.exit(1)
 
 	# Put the defrag dirs in the list
 	out_list = []
@@ -63,9 +68,13 @@ def get_data_subdirs(root):
 	# Make them absolute paths
 	for idx, d in enumerate(out_list):
 		name_bits = d.split("_")
-		obj_num = int(name_bits[0][3:])
-		sub_num = int(name_bits[1][3:])
-		out_list[idx] = (root + "/" + d, obj_num, sub_num)
+		try: 
+			obj_num = int(name_bits[0][3:])
+			sub_num = int(name_bits[1][3:])
+			out_list[idx] = (root + "/" + d, obj_num, sub_num)
+		except ValueError:
+			# Catch improperly named directories
+			rospy.logerr("Unprocessable directory named %s at %s with name_bits: %s. Skipping." % (d, root, name_bits))
 
 	return out_list
 

@@ -25,7 +25,7 @@ def save_cloud(filename, cloud):
 		csv_writer.writerow(pt)
 
 if __name__ == "__main__":
-	rospy.init_node("extraction_replay")
+	rospy.init_node("extraction_replay", anonymous=True)
 	rospy.loginfo("Replay node online!")
 	
 	wam_joint_state_pub = rospy.Publisher("/wam/joint_states", JointState, queue_size=1, latch=True)
