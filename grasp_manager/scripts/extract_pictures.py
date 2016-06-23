@@ -5,7 +5,7 @@
 import rospy
 import rosbag
 
-from shared_playback import *
+from grasp_manager.shared_playback import *
 
 import cv2
 from cv_bridge import CvBridge, CvBridgeError

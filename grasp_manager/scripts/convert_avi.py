@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 import os
-from shared_playback import *
+from grasp_manager.shared_playback import *
 import time
 
 if __name__ == "__main__":

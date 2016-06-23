@@ -2,12 +2,12 @@
 import rospy
 import rosbag
 
-from grasp_manager.msg import GraspSnapshot
+from grasp_data_msgs.msg import GraspSnapshot
 from sensor_msgs.msg import Image, JointState, PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 
-from shared_globals import *
-from shared_playback import *
+from grasp_manager.shared_globals import *
+from grasp_manager.shared_playback import *
 
 import csv
 
