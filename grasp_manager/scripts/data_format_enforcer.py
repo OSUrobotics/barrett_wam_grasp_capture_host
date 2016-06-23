@@ -11,7 +11,7 @@ import rosbag
 from wam_msgs.msg import StampedString
 
 from shared_globals import *
-from shared_playback import *
+from grasp_manager.shared_playback import *
 
 import os
 import yaml

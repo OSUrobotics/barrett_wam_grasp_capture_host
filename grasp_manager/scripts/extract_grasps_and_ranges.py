@@ -8,8 +8,8 @@ from wam_msgs.msg import StampedString
 from sensor_msgs.msg import CompressedImage, Image, CameraInfo, PointCloud2, JointState
 from rosgraph_msgs.msg import Clock
 from ar_track_alvar_msgs.msg import AlvarMarkers as ARMarker
-from grasp_manager.msg import GraspSnapshot
-from grasp_manager.srv import TransformCloud
+from grasp_data_msgs.msg import GraspSnapshot
+from grasp_data_msgs.srv import TransformCloud
 
 
 
@@ -17,7 +17,7 @@ import sys
 import time
 
 from shared_globals import *
-from shared_playback import *
+from grasp_manager.shared_playback import *
 
 class CamInfoSpammer:
 	def __init__(self):

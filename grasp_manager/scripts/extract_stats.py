@@ -11,10 +11,15 @@ import os
 import csv
 import copy
 
-from shared_playback import *
+from grasp_manager.shared_playback import *
 
-average_grasps_per_subject_path = os.path.expanduser("~") + "/" + "grasp_results" + "/" + "subject_grasps_averages_master.csv"
-out_extreme_file_path = os.path.expanduser("~") + "/" + "grasp_results" + "/" + "grasps_with_extremes_count.csv"
+study_root_dir = os.path.expanduser("~") + "/grasping_user_study"
+
+# Output stat file paths
+average_grasps_per_subject_path = study_root_dir + "/processed_data/grasp_results" + "/" + "subject_grasps_averages_master.csv"
+out_extreme_file_path = study_root_dir + "/processed_data/grasp_results" + "/" + "grasps_with_extremes_count.csv"
+oe_stat_path = study_root_dir + "/processed_data/grasp_results/" + "optimal_extreme_count_master.csv"
+oe_stat_agg_path = study_root_dir + "/processed_data/grasp_results/" + "optimal_extreme_agg_master.csv"
 
 # Optimal/Extreme record used to remember peoples' optimal/extreme
 #	counts of a per object basis
@@ -156,7 +161,7 @@ def extract_optimal_extreme_count_table(grasp_data):
 		for s in oe_dict[o]:
 			if oe_dict[o][s].good_extreme_cnt > 0 or oe_dict[o][s].good_optimal_cnt > 0 or oe_dict[o][s].bad_extreme_cnt > 0 or oe_dict[o][s].bad_optimal_cnt > 0:
 				out_list.append(oe_dict[o][s])
-	write_csv_table("optimal_extreme_count_master.csv", oe_field_names, out_list)
+	write_csv_table(oe_stat_path, oe_field_names, out_list)
 
 	# Aggregate some data
 	agg_out_list = []
@@ -167,12 +172,12 @@ def extract_optimal_extreme_count_table(grasp_data):
 
 		agg_out_list.append(obj_agg)
 
-	write_csv_table("optimal_extreme_agg_master.csv", oe_agg_field_names, agg_out_list)
+	write_csv_table(oe_stat_agg_path, oe_agg_field_names, agg_out_list)
 
 def get_joint_value_table(grasp_data):
 	field_names = ["Good or Bad", "Object", "Subject", "Grasp", "Optimality", "Index", "Task", "inner_f1", "inner_f2", "inner_f3", "outer_f1", "outer_f2", "outer_f3", "spread"]
 	
-	out_path = os.path.expanduser("~") + "/grasp_results/grasp_joints" + "_joint_angle_master.csv"
+	out_path = os.path.expanduser("~") + "/grasping_user_study/processed_data/grasp_results/grasp_joints" + "_joint_angle_master.csv"
 	write_csv_table(out_path, field_names, grasp_data)
 
 

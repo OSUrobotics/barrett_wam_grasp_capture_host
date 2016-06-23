@@ -2,12 +2,12 @@
 import rospy
 import rosbag
 
-from grasp_manager.msg import GraspSnapshot
+from grasp_data_msgs.msg import GraspSnapshot
 from sensor_msgs.msg import Image, JointState, PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 
-from shared_globals import *
-from shared_playback import *
+from grasp_manager.shared_globals import *
+from grasp_manager.shared_playback import *
 
 import csv
 
@@ -25,7 +25,7 @@ def save_cloud(filename, cloud):
 		csv_writer.writerow(pt)
 
 if __name__ == "__main__":
-	rospy.init_node("extraction_replay")
+	rospy.init_node("extraction_replay", anonymous=True)
 	rospy.loginfo("Replay node online!")
 	
 	wam_joint_state_pub = rospy.Publisher("/wam/joint_states", JointState, queue_size=1, latch=True)

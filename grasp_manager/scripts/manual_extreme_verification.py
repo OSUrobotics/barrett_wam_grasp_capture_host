@@ -3,11 +3,11 @@ import rospy
 
 from std_msgs.msg import Header, Int32MultiArray
 from sensor_msgs.msg import JointState, Image
-from grasp_manager.msg import GraspSnapshot
+from grasp_data_msgs.msg import GraspSnapshot
 from wam_msgs.msg import HandCommand
 from wam_srvs.srv import JointMove, CartPosMove
 
-from shared_playback import *
+from grasp_manager.shared_playback import *
 
 import os
 import csv
@@ -15,7 +15,7 @@ import copy
 import time
 
 out_suffix = "_extreme_verification.csv"
-similar_dir = os.path.expanduser("~") + "/grasp_similarities"
+similar_dir = os.path.expanduser("~") + "/grasping_user_study/grasp_similarities"
 out_dir = os.path.expanduser("~") + "/grasp_verifications"
 
 def get_testable_objects(similar_dir):
@@ -110,6 +110,10 @@ if __name__ == "__main__":
 	rospy.init_node("manual_extreme_verification")
 	base_dict = {"object":'', "subject":'', "grasp":'', "idx":'', "trial":'', "success":''}
 	base_fields = ["object", "subject", "grasp", "idx", "trial", "success"]
+	if base_dict.keys() == base_fields:
+		rospy.logwarn("A better way to make a list of fields for csv saving would be to take the keys of the base_dict and make a list of them. This comment demonstrates that they are equal. Go to the main of manual_extreme_verification.py")
+	else:
+		rospy.logwarn("Remove the if-statement above this comment and write a comment saying why these two lists are not equal.")
 
 	obj_sub_tuples = get_testable_objects(similar_dir)
 	obj_sub_tuples = remove_finished(similar_dir, obj_sub_tuples)
