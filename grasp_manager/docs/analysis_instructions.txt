@@ -8,17 +8,30 @@
 
 	In a new terminal run
 		rosrun grasp_manager extract_grasps_and_ranges.py
-	to extract stl files for ICP, run
-		rosrun barrett_hand_control stl_generator.py
 
-	?? To extract pointclouds for ICP ??
-
-	to extract images of optimal and extreme grasps in hoes of human insight moments:
+	to extract images of optimal and extreme grasps:
 		rosrun grasp_manager extract_pictures.py
 
-	to perform manual alignment, run 
-		roslaunch barrett_hand_control manual_alignment.py
+	to perform manual alignment (and obtain scene pointclouds for attempted ICP), run 
+		roslaunch barrett_hand_control manual_alignment.launch
+	to extract stl files for attempted ICP, run
+		rosrun barrett_hand_control stl_generator.py
+
+	to validate grasps with ground truth grasping tests (replicate the grasp with the WAM arm and record whether it succeeded or not)
+		roslaunch grasp_manager verify_extremes.launch
+
+		* This code will also reorient the hand and grasp to a standardized axis (for spheres, object's x-axis pointing to palm, etc...)
+
+	to extract contact points:
+		roslaunch valid_grasp_generator generate_valid_grasp.launch
+	
+	to extract statistics about total numbers of grasps per subject and per object and optimal and extreme counts per grasp
+		rosrun grasp_manager extract_stats.py
+
+# Fundamental Ideas
+	Cindy has created a MasterMatrix.txt that resides in the barrett_hand_control folder's src directory. This matrix serves as a rough alignment of the kinect pointcloud to the robot in simulation. The idea is that neither the robot nor the kinect would move significantly during testing, so this matrix would not need to be regenerated per grasp. To create the matrix, we gave Cindy an STL of the robot, a pointcloud of the scene and an image of the same scene with a collection of identical points marked between the three. She performed ICP to minimize the overall error in those points and gave us a matrix for manual alignment work.
+	Cindy also generaetd code to try to determine the hand and object alignment using ICP alone instead of manual alignment. For this procedure, she needs both STL files and pointclouds.
 
 # Troubleshooting:
 	Error: "No data recorded for key ptcloud" in extract_grasps_and_ranges.py
-	Resolution: Not yet known, still searching.
+	Resolution: Not yet known, still searching. This generally means that the pointcloud data feed was dropped mid capture, or that there is trouble recognizing the AR markers, so the pointclouds aren't being properly realigned. Try a new capture and ensure that the markers are visible and inspect the bag file to be sure depth data is present.
