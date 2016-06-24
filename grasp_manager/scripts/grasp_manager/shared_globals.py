@@ -6,10 +6,11 @@ valid_grasp_dir = rospkg.RosPack().get_path('valid_grasp_generator')
 catkin_ws_location = valid_grasp_dir[:-26]
 
 user = getpass.getuser()
-#base_dir = os.path.expanduser("~") + "/grasping_user_study" # The fully qualified path to the grasp data
-base_dir = "/media/" + user + "/FA648F24648EE2AD/grasping_user_study" # The fully qualified path to the grasp data
+local_data_path = os.path.expanduser("~") + "/grasping_user_study" 
+harddrive_path = "/media/" + user + "/FA648F24648EE2AD/grasping_user_study" 
 
 # Default grasp data location
+base_dir = harddrive_path
 grasp_info_dir = base_dir + "/grasp_data"
 
 obj_transform_dir = base_dir + "/processed_data/grasp_transforms/"
