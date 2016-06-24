@@ -12,7 +12,7 @@ import datetime
 import time
 
 from bag_manager import BagManager
-from shared_globals import *
+from grasp_manager.shared_globals import *
 from wam import *
 from gui_utils import *
 from hand_logger import *
@@ -31,7 +31,7 @@ class GraspCapture:
 		self.gui = gui
 		self.bag_manager = BagManager()
 		self.hand_logger = HandLogger(self.bag_manager)
-		self.wam 	 = WAM(self.bag_manager)
+                self.wam 	 = WAM(self.bag_manager)
 		self.kinect_monitor = KinectMonitor(kinect_data_topics[1])
 		self.cur_grasp_data = GraspData(self.gui, self.bag_manager)
 		
@@ -78,8 +78,8 @@ class GraspCapture:
 #############################
 ###### Main Workflow ########
 #############################
-	def start_new_trial(self):
-		# Ensure that the old trial has ended
+	def validate_trial_and_begin(self):
+                # Ensure that the old trial has ended
 		if self.cur_grasp_data.initialized:
 			self.gui.show_error("Current grasp trial not complete. Not beginning new trial")
 			return
@@ -87,9 +87,7 @@ class GraspCapture:
 		# Setup the next trial data structures
 		self.current_phase = 0
 		self.gui.show_info("Beginning new trial.")
-		self.gui.disable_element("_new_trial")
-	
-	def validate_trial_and_begin(self):
+
 		if not self.cur_grasp_data.make_data_dir():
 			return
 
@@ -236,10 +234,10 @@ class GraspCapture:
 
 		# Get ready for another trial
 		self.gui.show_error("")
-		self.gui.show_info("Trial complete. Press New Trial to begin another trial.")
+		self.gui.show_info("Trial complete. Press Begin Trial to begin another trial.")
 		self.cur_grasp_data.reinit()
 		self.reinit()
-		self.gui.enable_element("_new_trial")
+		self.gui.enable_element("_begin_trial")
 
 	def cleanup_process(self):
 		kinect_monitor.kill_monitor()
@@ -251,8 +249,8 @@ class GraspData:
 		self.gui = gui
 		self.bag_manager = bag_manager
 		self.grasp_capture_annotation_messages = grasp_capture_annotation_messages
-		self.workflow_elements = ["_new_trial", "_good_bad", "_sub_num", "_obj_num", "_begin_trial"]
-		self.annotation_elements = ["_new_grasp", "_extreme_grasp", "_optimal_grasp", "rotation_symm", "_start_natural"]
+		self.workflow_elements = ["_good_bad", "_sub_num", "_obj_num", "_begin_trial"]
+		self.annotation_elements = ["_new_grasp", "_extreme_grasp", "_optimal_grasp", "_rotation_symm", "_start_natural"]
 		self.starting_annotation_elements = ["_new_grasp", "_start_natural"]
 		self.annotations_topic = "/grasp_annotations"
 		self.annotations_pub = rospy.Publisher(self.annotations_topic, StampedString, queue_size=1)
@@ -312,6 +310,7 @@ class GraspData:
 		# Create the directory
 		if os.path.exists(self.instance_dir):
 			rospy.logwarn("Grasping directory already exists. Appending unique id.")
+                        self.gui.show_error("Grasping directory already exists. Appending unique ID (assuming continuation of a previous trial). Continue if correct.")
 			suffix_num =  get_cur_grasp_num("/".join(self.instance_dir.split("/")[0:-1]), base_dir)
 
 			self.instance_dir += "_" + suffix_num
@@ -350,27 +349,33 @@ class GraspData:
 
 	def add_new_grasp(self):
 		self.gui.disable_element("_new_grasp")
+		self.gui.disable_element("_rotation_symm")
+                self.gui.disable_element("_start_natural")
 		self.grasp_complete = False
 		self.grasp_set_num += 1
 		self.add_annotation(self.grasp_capture_annotation_messages['new_grasp'] + str(self.grasp_set_num))
 		self.gui.show_info("Beginning grasp set " + str(self.grasp_set_num))
 		self.gui.enable_element("_optimal_grasp")
+                self.gui.enable_element("_extreme_grasp")
 	
 	def specify_optimal_grasp(self):
 		self.gui.disable_element("_optimal_grasp")
-		self.grasp_complete = True
+                self.grasp_complete = True
 		self.add_annotation(self.grasp_capture_annotation_messages['optimal'] + str(self.grasp_set_num))
 		self.gui.show_info("Optimal grasp recorded.")
 		self.gui.enable_element("_new_grasp")
+                self.gui.enable_element("_rotation_symm")
+                self.gui.enable_element("_start_natural")
 	
 	def specify_extreme_grasp(self):
 		self.grasp_extreme_num += 1
 		self.add_annotation(self.grasp_capture_annotation_messages['extreme'][0] + str(self.grasp_extreme_num) + self.grasp_capture_annotation_messages['extreme'][1] + str(self.grasp_set_num))
-		self.gui.show_info("Added extreme grasp " + str(self.grasp_extreme_num) + " for set " str(self.grasp_set_num))
+		self.gui.show_info("Added extreme grasp " + str(self.grasp_extreme_num) + " for set " + str(self.grasp_set_num))
 
 	def specify_rotational_symmetry(self):
 		self.add_annotation(self.grasp_capture_annotation_messages['rotation'] + str(self.grasp_set_num))
 		self.gui.show_info("Added rotational symmetry for grasp " + str(self.grasp_set_num))
+                self.gui.disable_element("_rotation_symm")
 
 	def start_natural_task(self):
 		if not self.grasp_complete:
@@ -386,7 +391,7 @@ class GraspData:
 		return (self.instance_dir + '/')
 
 	def stop_grasp_annotations(self):
-		disable_gui_elements(self.gui, self.annotation_buttons)
+		disable_gui_elements(self.gui, self.annotation_elements)
 		self.add_annotation("Bag file closing. End final grasp set.")
 		time.sleep(0.1)
 		ret = self.bag_manager.stop_recording(self.annotation_id)

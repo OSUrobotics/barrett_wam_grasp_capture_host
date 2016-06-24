@@ -16,14 +16,12 @@ class App(BaseWidget):
 		self.add_order_choice_elements()
 		self.add_capture_elements()
 
-		self._formset = ["_info_box", "_error_box", ("_new_trial", "_good_bad", "_obj_num", "_sub_num", "_begin_trial"), ("_robot_phase_first", "_human_phase_first"), ("_end_phase", "_begin_next_phase"), ("_new_grasp", "_optimal_grasp", "_extreme_grasp"), ("_start_natural", "_rotation_symm")]
+		self._formset = ["_info_box", "_error_box", ("_good_bad", "_obj_num", "_sub_num", "_begin_trial"), ("_robot_phase_first", "_human_phase_first"), ("_end_phase", "_begin_next_phase"), ("_new_grasp", "_optimal_grasp", "_extreme_grasp"), ("_start_natural", "_rotation_symm")]
 
 		# Create the control structures and hook them up
 		self.grasp_capture = grasp_capture.GraspCapture(self)
-		self._new_trial.value = self.grasp_capture.start_new_trial
 
 	def add_start_trial_gui_components(self):
-		self._new_trial = ControlButton('New Trial')
 		self._begin_trial = ControlButton('Begin Trial')
 		self.disable_element('_begin_trial')
 		
@@ -92,11 +90,11 @@ class App(BaseWidget):
 			return False
 
 	def register_button_cb(self, button_id, callback):
-		try:
-			exec("self." + button_id + "._form.pushButton.disconnect()")
+		#try:
+			#exec("self." + button_id + "._form.pushButton.disconnect()")
 			exec("self." + button_id + ".value = callback")
-		except:
-			self.show_error("DEVELOPER MSG: cannot register button " + button_id + ".")
+		#except:
+		#	self.show_error("DEVELOPER MSG: cannot register button " + button_id + ".")
 
 	def show_info(self, msg):
 		self._info_box.value = msg

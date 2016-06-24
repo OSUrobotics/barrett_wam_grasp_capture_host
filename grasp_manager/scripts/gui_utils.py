@@ -21,6 +21,6 @@ def disable_gui_elements(gui, control_id_list):
 
 # Elements to be enabled when a workflow phase is started
 #	and then disabled when that phase is complete
-workflow_gui_elements = {'new_trial_elements':["_new_trial", "_good_bad", "_sub_num", "_obj_num", "_begin_trial"] }
+workflow_gui_elements = {'new_trial_elements':["_good_bad", "_sub_num", "_obj_num", "_begin_trial"] }
 
 
