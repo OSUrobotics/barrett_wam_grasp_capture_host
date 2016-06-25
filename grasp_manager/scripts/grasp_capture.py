@@ -32,7 +32,7 @@ class GraspCapture:
 		self.bag_manager = BagManager()
 		self.hand_logger = HandLogger(self.bag_manager)
                 self.wam 	 = WAM(self.bag_manager)
-		self.kinect_monitor = KinectMonitor(kinect_data_topics[1])
+		self.kinect = KinectMonitor(self, self.gui)
 		self.cur_grasp_data = GraspData(self.gui, self.bag_manager)
 		
 		# Complete with the general initialization
@@ -74,6 +74,7 @@ class GraspCapture:
 		self.gui.register_button_cb("_human_phase_first", self.human_phase_first)
 		self.gui.register_button_cb("_end_phase", self.cleanup_recording)
 		self.gui.register_button_cb("_begin_next_phase", self.begin_second_phase)
+
 
 #############################
 ###### Main Workflow ########
@@ -140,8 +141,7 @@ class GraspCapture:
 		global kinect_data_topics
 		rospy.loginfo("Beginning robot capture phase.")
 		self.cur_grasp_data.start_robot_grasp_annotations()
-		self.kinect_monitor.block_for_kinect()
-		self.kinect_monitor.start_monitor()
+		self.kinect.resume_monitors()
 		
 		self.cur_grasp_data.add_annotation("Motion Capture Start")	
 		logging_dir = self.cur_grasp_data.get_log_dir()
@@ -155,8 +155,7 @@ class GraspCapture:
 	def init_human_phase(self):
 		global kinect_data_topics
 		rospy.loginfo("Beginning human capture phase.")
-		self.kinect_monitor.block_for_kinect()
-		self.kinect_monitor.start_monitor()
+		self.kinect.resume_monitors()
 		
 		self.sounder_pub.publish(EmptyM())
 		self.cur_grasp_data.start_human_grasp_annotations()
@@ -177,7 +176,7 @@ class GraspCapture:
 			# Stop the robot recording
 			#TODO: Integrate the GUI with the annotations interface
 			self.cur_grasp_data.add_annotation("Motion Capture End")
-			self.kinect_monitor.stop_monitor()
+			self.kinect.pause_monitors()
 			self.hand_logger.end_hand_capture();
 			self.cur_grasp_data.stop_grasp_annotations()
 			
@@ -203,7 +202,7 @@ class GraspCapture:
 			# Stop the human recording
 			#TODO: Integrate the GUI with the annotations interface.
 			self.cur_grasp_data.add_annotation("Human grasp capture end.")
-			self.kinect_monitor.stop_monitor()
+			self.kinect.pause_monitors()
 		
 			self.bag_manager.stop_recording(self.kinect_bag_id)
 			self.cur_grasp_data.stop_grasp_annotations()
@@ -240,7 +239,7 @@ class GraspCapture:
 		self.gui.enable_element("_begin_trial")
 
 	def cleanup_process(self):
-		kinect_monitor.kill_monitor()
+		self.kinect.kill_monitors()
 		rospy.loginfo("Completed grasp testing =).")
 
 class GraspData:

@@ -1,79 +1,69 @@
 import rospy
-from sensor_msgs.msg import CompressedImage, Image
+from threading import Lock
 
-import threading
+from topic_monitor import TopicMonitor
+from grasp_manager.shared_globals import kinect_data_topics
 
-# Currently only monitors the depth topic
 class KinectMonitor:
-	def __init__(self, depth_topic):
-		self.acceptable_kinect_publish_time = 0.5 # Includes startup delay
-		self.monitor_period = 3 # seconds
-		self.should_kill_monitor = False
-		self.recv_depth_msg = False
-		self.depth_topic = depth_topic
+        # Parameters:
+        #   topic_dict: a pairing of topic strings and associated callbacks
+	def __init__(self, gm, gui):
+		global kinect_data_topics
+                self.gui = gui
+		self.grasp_manager = gm
+                self.acceptable_timeout = rospy.Duration(0.25)
+                self.startup_delay = rospy.Duration(1)
 
-		rospy.loginfo("Started kinect depth monitor for topic " + depth_topic)
+                self.topic_dict = {}
+		self.topic_dict[kinect_data_topics[0]] = self.kinect_rgb_down
+		self.topic_dict[kinect_data_topics[1]] = self.kinect_depth_down
 
-		self.monitor_thread = threading.Thread(target=self.monitor)
-		self.monitor_lock = threading.Lock()
-		self.monitor_lock.acquire()
-		self.monitor_thread.start()
+                self.kinect_need_reset_sync = Lock() # Ensures only one reset mechanism goes through the process of a reset
+		self.kinect_reset_lock = Lock() # Prevents continuation of the grasp_manager until kinect reset occurs
+		self.kinect_reset_lock.acquire()
+		self.gui.register_button_cb("_kinect_reset", self.kinect_reset)
+                self.gui.disable_element("_kinect_reset")
 
-	def monitor(self):
-		self.continue_monitor = True
-		period = rospy.Duration(self.monitor_period)
+                self.monitor_dict = {}
+                #print "topic_dict: ", self.topic_dict
+                for t in self.topic_dict:
+                    self.monitor_dict[t] = TopicMonitor(t, t, self.acceptable_timeout, self.startup_delay, self.topic_dict[t])
+                
+                self.pause_monitors()
 
-		while not rospy.is_shutdown() and self.continue_monitor:
-			if self.should_kill_monitor:
-				break
-			self.monitor_lock.acquire()
-			self.check_kinect_depth(self.acceptable_kinect_publish_time)
-			self.monitor_lock.release()
-			
-			rospy.sleep(period)
+        def kill_monitors(self):
+            for k in self.monitor_dict:
+                self.monitor_dict[k].kill_monitor()
 
-		print "Kinect monitor thread shutdown"
-		return
+        def pause_monitors(self):
+            for k in self.monitor_dict:
+                self.monitor_dict[k].pause_monitor()
+        
+        def resume_monitors(self):
+            for k in self.monitor_dict:
+                self.monitor_dict[k].resume_monitor()
 
-	def start_monitor(self):
-		try:
-			self.monitor_lock.release()
-		except threading.ThreadError:
-			rospy.logerr("Trying to release the monitor lock, but the main thread doesn't own it.")
-			return
+	def kinect_reset(self):
+		self.kinect_reset_lock.release()
 
-		rospy.loginfo("Kinect monitoring started.")
+	def kinect_rgb_down(self):
+                rospy.logerr("Kinect RGB stream down! The video capture software (or hardware) needs a reset before proceeding.")
+                if not self.kinect_need_reset_sync.acquire(False):
+                    return
 
-	def stop_monitor(self):
-		self.monitor_lock.acquire()
-		rospy.loginfo("Kinect monitoring stopped.")
+                self.gui.pickle_interface()
+                self.gui.enable_element("_kinect_reset")
+		self.kinect_reset_lock.acquire()
+                self.gui.unpickle_interface()
+                self.kinect_need_reset_sync.release()
 
-	def kill_monitor(self):
-		self.should_kill_monitor = True
-
-	# Parameters: delay - time to wait for messages in seconds (float)
-	def check_kinect_depth(self, delay):
-		delay = rospy.Duration(delay)
-		self.recv_depth_msg = False
-		self.depth_sub = rospy.Subscriber(self.depth_topic, CompressedImage, self.depth_callback)
-
-		rospy.sleep(delay)
-		
-		if not self.recv_depth_msg:
-			rospy.logerr("Kinect depth data stream down!")
-			return False
-
-		return True
-
-	def block_for_kinect(self):
-		while True:
-			if self.check_kinect_depth(self.acceptable_kinect_publish_time):
-				rospy.loginfo("Kinect is publishing depth information.")
-				break
-			else:
-				rospy.logerr("Kinect is not publishing depth data!")
-				raw_input("Please reset the kinect and then press [Enter]")
-
-	def depth_callback(self, msg):
-		self.recv_depth_msg = True
-		self.depth_sub.unregister()
+        def kinect_depth_down(self):
+                rospy.logerr("Kinect DEPTH stream down! The video capture software (or hardware) needs a reset before proceeding.")
+                if not self.kinect_need_reset_sync.acquire(False):
+                    return
+                
+                self.gui.pickle_interface()
+                self.gui.enable_element("_kinect_reset")
+                self.kinect_reset_lock.acquire()
+                self.gui.unpickle_interface()
+                self.kinect_need_reset_sync.release()
