@@ -179,16 +179,6 @@ def get_joint_values(data_dir_path, grasp_stamp):
 
 	return (arm_jnts, hand_jnts)
 
-def msg_from_bag(bag, topics, time_stamp):
-	lead_time = rospy.Duration(0.5)
-	play_time = rospy.Duration(0.5)
-	for topic, msg, t in bag.read_messages(topics=topics, start_time=(grasp_stamp - lead_time), end_time=(grasp_stamp + play_time)):
-		#print "data: ", msg
-		if t >= time_stamp:
-			return msg
-	# No luck
-	return None
-
 if __name__ == "__main__":
 	rospy.init_node("extract_extremes")
 	print "Data directory: ", grasp_data_directory

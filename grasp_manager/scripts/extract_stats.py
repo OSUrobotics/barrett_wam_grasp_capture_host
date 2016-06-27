@@ -38,7 +38,7 @@ class OERecord:
 		return csv_line[:-1] + "\n"
 
 class DataLine:
-	def __init__(self, obj_num, sub_num, grasp_num, task, is_optimal, oe_num, jnts, stamp):
+	def __init__(self, obj_num, sub_num, grasp_num, task, is_optimal, oe_num, jnts, stamp, is_bad):
 		self.obj_num = obj_num
 		self.sub_num = sub_num
 		self.grasp_num = grasp_num
@@ -51,6 +51,7 @@ class DataLine:
 		self.oe_num = oe_num
 		self.hand_jointstate = jnts
 		self.stamp = stamp
+		self.is_bad = is_bad
 
 	def make_csv_line(self, field_list):
 		csv_line = ""
@@ -69,6 +70,11 @@ class DataLine:
 				csv_line += self.optimal_extreme_str + ","
 			elif "stamp" in f.lower():
 				csv_line += self.stamp + ","
+			elif "good" in f.lower():
+				if self.is_bad:
+					csv_line += "bad,"
+				else:
+					csv_line += "good,"
 			else:
 				# Ought to be a joint state name
 				try:
@@ -142,9 +148,10 @@ def extract_optimal_extreme_count_table(grasp_data):
 	write_csv_table("optimal_extreme_agg_master.csv", oe_agg_field_names, agg_out_list)
 
 def get_joint_value_table(grasp_data):
-	field_names = ["Object", "Subject", "Grasp", "Optimality", "Index", "Task", "inner_f1", "inner_f2", "inner_f3", "outer_f1", "outer_f2", "outer_f3", "spread"]
+	field_names = ["Good or Bad", "Object", "Subject", "Grasp", "Optimality", "Index", "Task", "inner_f1", "inner_f2", "inner_f3", "outer_f1", "outer_f2", "outer_f3", "spread"]
 	
-	write_csv_table("joint_angle_master.csv", field_names, grasp_data)
+	out_path = os.path.expanduser("~") + "/grasp_results/grasp_joints" + "_joint_angle_master.csv"
+	write_csv_table(out_path, field_names, grasp_data)
 
 
 def get_all_data(grasp_data_dir):
@@ -158,13 +165,17 @@ def get_all_data(grasp_data_dir):
 			rospy.logerr("Skipping data directory " + data_dir)
 			continue
 
+		is_bad = "bad" in data_dir
+
 		for topic, msg, t in extreme_bag.read_messages():
 			oe_num = 0
 			if msg.is_optimal:
 				oe_num = msg.optimal_num
 			else:
 				oe_num = msg.extreme_num
-			out_lines.append(DataLine(obj_num, sub_num, msg.grasp_num, msg.task, msg.is_optimal, oe_num, msg.hand_joints, msg.stamp))
+			out_lines.append(DataLine(obj_num, sub_num, msg.grasp_num, msg.task, msg.is_optimal, oe_num, msg.hand_joints, msg.stamp, is_bad))
+			if obj_num == 2 and sub_num == 4:
+				print "For object 2 and subject 4, stored: ", msg.grasp_num, " oe_num: ", oe_num, " and is_optimal: ", msg.is_optimal
 
 		extreme_bag.close()
 

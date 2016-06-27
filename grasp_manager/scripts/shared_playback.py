@@ -1,3 +1,4 @@
+import rospy
 import rosbag
 from shared_globals import *
 
@@ -82,5 +83,15 @@ def try_bag_open(bag_path):
 			print "Could not reindex and open "
 			raise IOError
 
+
+def msg_from_bag(bag, topics, time_stamp):
+	lead_time = rospy.Duration(0.5)
+	play_time = rospy.Duration(0.5)
+	for topic, msg, t in bag.read_messages(topics=topics, start_time=(time_stamp - lead_time), end_time=(time_stamp + play_time)):
+		#print "data: ", msg
+		if t >= time_stamp:
+			return msg
+	# No luck
+	return None
 
 

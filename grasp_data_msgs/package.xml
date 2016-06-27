@@ -1,25 +1,21 @@
 <?xml version="1.0"?>
 <package>
-  <name>grasp_manager</name>
+  <name>grasp_data_msgs</name>
   <version>0.0.0</version>
-  <description>Provides a master controller for the WAM grasp data collection process. Handles dispatching of recording and playback jobs via ROS topics. Data will be saved on the computer that runs this launch file.</description>
+  <description>The messages package for the grasp_manager package. Allows for concise description of grasp data in relevant user studies and facilitates data flow through processing</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
-  <!-- Example:  -->
-  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
-  <maintainer email="cartejac@onid.oregonstate.edu">Jackson Carter</maintainer>
+  <maintainer email="cartejac@oregonstate.edu">Jackson Carter</maintainer>
 
 
   <!-- One license tag required, multiple allowed, one license per tag -->
-  <!-- Commonly used license strings: -->
-  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
   <license>GPLv3</license>
 
 
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/grasp_manager</url> -->
+  <!-- <url type="website">http://wiki.ros.org/grasp_data_msgs</url> -->
 
 
   <!-- Author tags are optional, mutiple are allowed, one per tag -->
@@ -32,36 +28,27 @@
   <!-- Dependencies can be catkin packages or system dependencies -->
   <!-- Examples: -->
   <!-- Use build_depend for packages you need at compile time: -->
-  <!-- <build_depend>message_generation</build_depend>  -->
+  <build_depend>message_generation</build_depend> 
   <!-- Use buildtool_depend for build tool packages: -->
   <!--   <buildtool_depend>catkin</buildtool_depend> -->
   <!-- Use run_depend for packages you need at runtime: -->
-  <!-- <run_depend>message_runtime</run_depend> -->
+  <run_depend>message_runtime</run_depend> 
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>bag_tools</build_depend>
   <build_depend>geometry_msgs</build_depend>
-  <build_depend>rosbag</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>std_srvs</build_depend>
-  <build_depend>tf</build_depend>
-  <build_depend>wam_msgs</build_depend>
-  <build_depend>wam_srvs</build_depend>
-  <run_depend>bag_tools</run_depend>
   <run_depend>geometry_msgs</run_depend>
-  <run_depend>rosbag</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>rospy</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>std_msgs</run_depend>
   <run_depend>std_srvs</run_depend>
-  <run_depend>tf</run_depend>
-  <run_depend>wam_msgs</run_depend>
-  <run_depend>wam_srvs</run_depend>
+
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

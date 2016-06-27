@@ -1,5 +1,5 @@
 #include <ros/ros.h>
-#include "grasp_manager/TransformCloud.h"
+#include "grasp_data_msgs/TransformCloud.h"
 #include "pcl/ros/conversions.h"
 #include <pcl_ros/transforms.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -9,7 +9,7 @@
 
 #include <string.h>
 
-bool transform_cloud_handler(grasp_manager::TransformCloud::Request& req, grasp_manager::TransformCloud::Response& res)
+bool transform_cloud_handler(grasp_data_msgs::TransformCloud::Request& req, grasp_data_msgs::TransformCloud::Response& res)
 {
 	// Create transform from pose
 	tf::Quaternion marker_quat(req.marker_pose.orientation.x, req.marker_pose.orientation.y, req.marker_pose.orientation.z, req.marker_pose.orientation.w);

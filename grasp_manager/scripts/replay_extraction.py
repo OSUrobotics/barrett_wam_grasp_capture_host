@@ -73,10 +73,13 @@ if __name__ == "__main__":
 			depth_image_pub.publish(msg.depth_image)
 			ptcloud_pub.publish(msg.cloud_image)
 			o_or_e = ""
+			o_or_e_num = 0
 			if msg.is_optimal:
 				o_or_e = "optimal"
+				o_or_e_num = msg.optimal_num
 			else:
 				o_or_e = "extreme"
-			rospy.loginfo("Showing " + o_or_e  + " " + str(msg.extreme_num) + " of grasp idx " + str(msg.grasp_idx) + " (absolute grasp set " + str(msg.grasp_num) + ") for obj " + str(msg.obj_num) + " and sub " + str(msg.sub_num))
+				o_or_e_num = msg.extreme_num
+			rospy.loginfo("Showing " + o_or_e  + " " + str(o_or_e_num) + " of grasp idx " + str(msg.grasp_idx) + " (absolute grasp set " + str(msg.grasp_num) + ") for obj " + str(msg.obj_num) + " and sub " + str(msg.sub_num))
 
 		extreme_bag.close()

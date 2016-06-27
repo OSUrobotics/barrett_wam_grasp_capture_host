@@ -1,6 +1,6 @@
 #include <ros/ros.h>
-#include "grasp_manager/GraspSnapshot.h"
-#include "grasp_manager/SaveCloud.h"
+#include "grasp_data_msgs/GraspSnapshot.h"
+#include "grasp_data_msgs/SaveCloud.h"
 #include "sensor_msgs/PointCloud2.h"
 #include "pcl/ros/conversions.h"
 #include <pcl_ros/transforms.h>
@@ -22,14 +22,14 @@ using std::cout;
 // Prototypes
 void save_cloud(sensor_msgs::PointCloud2* cloud, string path);
 
-bool save_cloud_handler(grasp_manager::SaveCloud::Request& req,
-			grasp_manager::SaveCloud::Response& res)
+bool save_cloud_handler(grasp_data_msgs::SaveCloud::Request& req,
+			grasp_data_msgs::SaveCloud::Response& res)
 {
 	save_cloud(&(req.cloud), req.path);
 	return true;
 }
 
-void save_cloud_cb(const grasp_manager::GraspSnapshot::ConstPtr& msg)
+void save_cloud_cb(const grasp_data_msgs::GraspSnapshot::ConstPtr& msg)
 {
 	// Open pointcloud file
 	string filename = string("obj") + to_string(msg->obj_num) + \
