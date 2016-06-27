@@ -30,11 +30,11 @@ def set_grasp_num(grasp_message, new_num):
 	return grasp_message + str(new_num)
 
 # (Data dir, obj_num, sub_num)
-def get_data_dirs(grasp_data_dir):
+def get_data_dirs(grasp_data_dir = grasp_data_directory):
 	good_dirs = get_data_subdirs(grasp_data_dir + "/" + "good")
-	bad_dirs  = get_data_subdirs(grasp_data_dir + "/" + "bad" )
-	good_dirs.extend(bad_dirs)
-	print "Data directories to process: ", good_dirs
+	#bad_dirs  = get_data_subdirs(grasp_data_dir + "/" + "bad" )
+	#good_dirs.extend(bad_dirs)
+	#print "Data directories to process: ", good_dirs
 
 	return good_dirs
 
