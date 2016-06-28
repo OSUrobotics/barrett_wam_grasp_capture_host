@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<launch>
+	<arg name="fps" value="30" />
+
+	<!-- Single nodelet manager for all cameras -->
+	<arg name="manager"             value="nodelet_manager" />
+	<arg name="num_worker_threads"  default="3" /> <!-- Allocate at least 1 thread for each camera -->
+	<arg name="debug"               default="false" /> <!-- Run manager in GDB? -->
+	<include file="$(find rgbd_launch)/launch/includes/manager.launch.xml">
+		<arg name="name"                value="$(arg manager)" />
+		<arg name="debug"               value="$(arg debug)" />
+		<arg name="num_worker_threads"  value="$(arg num_worker_threads)" />
+	</include>
+
+	<!-- One camera -->
+	<include file="$(find realsense_camera)/launch/includes/realsense_r200_multiple_cameras.launch.xml">
+		<!-- Immutable parameters -->
+		<arg name="manager"	value="$(arg manager)" />
+		<arg name="serial_no"	value="2191300230" />
+		<arg name="usb_port_id" value="" /> <!--USB "Bus#-Port#"-->
+
+		<!-- Mutable parameters -->
+		<arg name="camera"	value="camera1" />
+	</include>
+	
+	<!-- The other camera -->
+	<include file="$(find realsense_camera)/launch/includes/realsense_r200_multiple_cameras.launch.xml">
+		<!-- Immutable parameters -->
+		<arg name="manager"	value="$(arg manager)" />
+		<arg name="serial_no"	value="2191300170" />
+		<arg name="usb_port_id" value="" /> <!--USB "Bus#-Port#"-->
+
+		<!-- Mutable parameters -->
+		<arg name="camera"	value="camera2" />
+	</include>
+</launch>
