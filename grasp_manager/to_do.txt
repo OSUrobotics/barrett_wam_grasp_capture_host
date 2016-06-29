@@ -1,0 +1,20 @@
+# Improvements to make to the grasp_manager package
+# Jackson Carter
+# 6/24/2016
+
+grasp_extreme_snapshots.bag should be created as the test data is taken to prevent long waits later. Other data should be stored as well for redundancy, but this data can be easily extracted as the study is running.
+	If we do this, there is the possibility that we will need to append to existing bag files in the event that a trial needs to be extended due to hardware failures.
+
+Increase button sizes and change their colors.
+
+Find out which bags are still recording and why!
+
+Kill kinect monitor, or whatever the hell is still running in the grasp_capture
+
+Add a testing suite with a virtualized WAM to ensure things work properly
+
+Shake test speed (way too slow right now)
+
+Put the topic monitor and related topic tools (one-shot buffer) in their own package or organize better.
+
+? Prevent ending a trial without the natural task being performed.

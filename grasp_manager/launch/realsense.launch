@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <launch>
-	<arg name="fps" value="30" />
+	<!--<arg name="fps" value="30" /> -->
+	<arg name="camera1_ns" value="camera1" />
+	<arg name="camera2_ns" value="camera2" />
 
 	<!-- Single nodelet manager for all cameras -->
 	<arg name="manager"             value="nodelet_manager" />
@@ -20,7 +22,12 @@
 		<arg name="usb_port_id" value="" /> <!--USB "Bus#-Port#"-->
 
 		<!-- Mutable parameters -->
-		<arg name="camera"	value="camera1" />
+		<arg name="camera"	value="$(arg camera1_ns)" />
+	</include>
+	<include file="$(find grasp_manager)/launch/ar_publisher.launch" ns="$(arg camera1_ns)">
+		<arg name="cam_image_topic" value="rgb/image_raw" />
+		<arg name="cam_info_topic" value="rgb/camera_info" />
+		<arg name="output_frame" value="$(arg camera1_ns)_rgb_optical_frame" />
 	</include>
 	
 	<!-- The other camera -->
@@ -31,6 +38,11 @@
 		<arg name="usb_port_id" value="" /> <!--USB "Bus#-Port#"-->
 
 		<!-- Mutable parameters -->
-		<arg name="camera"	value="camera2" />
+		<arg name="camera"	value="$(arg camera2_ns)" />
+	</include>
+	<include file="$(find grasp_manager)/launch/ar_publisher.launch" ns="$(arg camera2_ns)">
+		<arg name="cam_image_topic" value="rgb/image_raw" />
+		<arg name="cam_info_topic" value="rgb/camera_info" />
+		<arg name="output_frame" value="$(arg camera2_ns)_rgb_optical_frame" />
 	</include>
 </launch>

@@ -38,7 +38,7 @@ class TopicMonitor:
         def init_sub(self):
                 self.topic_class = rostopic.get_topic_class(self.topic, blocking=False)[0]
                 if self.topic_class == None:
-                    rospy.logerr("%s monitor %s topic not instantiated. Monitor useless.")
+                    rospy.logerr("%s monitor %s topic not instantiated. Monitor useless." % (self.name, self.topic))
                     raise Exception("see ros log.")
                 self.subscribe()
 
