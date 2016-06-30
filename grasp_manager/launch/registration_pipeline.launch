@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<launch>
+	<node name="topic_oneshot" type="topic_oneshot.py" pkg="grasp_manager" output="screen" >
+                <rosparam>
+                        in_topic: /camera1/depth/points
+                        out_topic: /camera1/depth/points/oneshot
+                </rosparam>
+	</node>
+
+	<!-- Downsampling filter -->
+	<node pkg="nodelet" type="nodelet" name="pcl_manager" args="manager" output="screen" />
+	<node pkg="nodelet" type="nodelet" name="voxel_grid" args="load pcl/VoxelGrid pcl_manager" output="screen">
+		<remap from="~input" to="/camera1/depth/points/oneshot" />
+                <rosparam>
+                        filter_field_name: z
+                        filter_limit_min: 0.01
+                        filter_limit_max: 3
+                        filter_limit_negative: False
+                        leaf_size: 0.01
+                </rosparam>
+	</node>
+
+	<!-- Statistical outlier filter -->
+	<node pkg="nodelet" type="nodelet" name="statistical_outlier_removal" args="load pcl/StatisticalOutlierRemoval pcl_manager" output="screen">
+		<remap from="~input" to="/camera1/depth/points/oneshot" />
+		<!--<remap from="statistical_outlier_removal/output" to="/camera1/depth/points/stat_filter" /> -->
+		<rosparam>
+                        mean_k: 8
+                        stddev: 1
+                        negative: false
+                </rosparam>
+	</node>
+
+	<!-- Polynomial Smoothing processor -->
+	<!--<node pkg="grasp_manager" type="polynomial_smoother" name="polynomial_smoother" output="screen">
+                <rosparam>
+                        in_topic: /statistical_outlier_removal/output
+                        out_topic: /camera1/depth/points/smoothed
+                </rosparam>
+	</node>-->
+
+	<node pkg="grasp_manager" type="ror_filter" name="ror_filter" output="screen">
+		<remap from="~in_topic" to="/camera1/depth/points/oneshot" />
+		<remap from="~out_topic" to="/camera1/depth/points/ror" />
+
+	</node>
+</launch>

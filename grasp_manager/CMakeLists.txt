@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(grasp_manager)
 
+set( CMAKE_EXPORT_COMPILE_COMMANDS 1 )
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -22,7 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
   bag_tools
 )
 
-find_package(PCL REQUIRED)
+find_package(PCL 1.2 REQUIRED)
 find_package(OpenCV REQUIRED)
 
 ## System dependencies are found with CMake's conventions
@@ -83,11 +85,14 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include)
+include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
+
+include_directories(${PCL_INCLUDE_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 ## Declare a cpp library
 # add_library(grasp_manager
@@ -105,6 +110,13 @@ add_dependencies(pointcloud_transformer grasp_data_msgs_generate_messages_cpp)
 add_executable(pointcloud_saver src/pointcloud_saver.cpp)
 target_link_libraries(pointcloud_saver ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 set_target_properties(pointcloud_saver PROPERTIES COMPILE_FLAGS "-Wall -std=c++0x")
+
+add_executable(polynomial_smoother src/polynomial_smoother.cpp src/pcl_to_ros.cpp)
+target_link_libraries(polynomial_smoother ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(ror_filter src/ror_filter.cpp src/pcl_to_ros.cpp)
+target_link_libraries(ror_filter ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(grasp_manager_node grasp_manager_generate_messages_cpp)
