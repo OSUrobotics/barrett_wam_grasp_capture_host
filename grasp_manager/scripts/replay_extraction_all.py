@@ -58,13 +58,9 @@ if __name__ == "__main__":
 	        for topic, msg, t in extreme_bag.read_messages(topics=[grasp_extreme_topic]):
                     try:
                         things_done = rospy.get_param("Things_done")
-                        time_previous = time.time() 
                         while not things_done:
                             time.sleep(1)
                             print "Waiting for operation to be done"
-                            new_time = time.time()
-                            if (new_time-time_previous) > 40:
-                                rospy.set_param("Things_done",True)
                             things_done = rospy.get_param("Things_done")
                         if things_done: 
 	                    #user_input = raw_input("Press anything to show grasp, n to stop, and s to skip: ")
@@ -72,8 +68,6 @@ if __name__ == "__main__":
 	                    #	break
 	                    #if user_input.lower() =="s":
 	                    #	continue
-
-	                    
 	                    #user_input = raw_input("Save pointcloud? (y/n): ")
 	                    #if user_input.lower() == "y":
 	                    #	filename = "obj" + str(msg.obj_num) + "_sub" + str(msg.sub_num) + "_grasp" + str(msg.grasp_num) + "_pointcloud.csv"
