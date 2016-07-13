@@ -2,7 +2,7 @@
 import rospy
 import rosbag
 
-from grasp_manager.msg import GraspSnapshot
+from grasp_data_msgs.msg import GraspSnapshot
 from sensor_msgs.msg import Image, JointState, PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 
@@ -37,6 +37,8 @@ if __name__ == "__main__":
 	ptcloud_pub = rospy.Publisher("/grasp_cloud", PointCloud2, queue_size=1, latch=True)
 	
 	data_repub = rospy.Publisher("/grasp_extremes", GraspSnapshot, queue_size=3, latch=True)
+
+        rospy.set_param("Things_done",True)
 	print "obtaining data dir"
 	#data_dir, obj_num, sub_num = get_data_dir()
         data_dirs = get_data_dirs()
