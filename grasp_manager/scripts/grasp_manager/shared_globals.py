@@ -7,7 +7,8 @@ catkin_ws_location = valid_grasp_dir[:-26]
 
 user = getpass.getuser()
 local_data_path = os.path.expanduser("~") + "/grasping_user_study" 
-harddrive_path = "/media/" + user + "/FA648F24648EE2AD/grasping_user_study" 
+#harddrive_path = "/media/" + user + "/FA648F24648EE2AD/grasping_user_study" 
+harddrive_path = "/media/" + user + "/FA648F24648EE2AD/grasp_study_2015" 
 
 # Default grasp data location
 base_dir = harddrive_path

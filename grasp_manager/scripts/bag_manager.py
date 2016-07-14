@@ -13,17 +13,17 @@ class BagManager:
 		rospy.loginfo("Waiting for bag_tools' recorder services to become available.")
 		rospy.wait_for_service(self.recorder_start_topic)
 		rospy.wait_for_service(self.recorder_stop_topic)
-		
+
 		self.record_start_srv = rospy.ServiceProxy(self.recorder_start_topic, recordStart)
 		self.record_stop_srv = rospy.ServiceProxy(self.recorder_stop_topic, recordStop)
-	
+
 	# Begins a bag file recording, always creating the bag path if
 	#	it doesn't exist
 	# Returns (None) on failure
-	def start_recording(self, bag_name, topic_list):
+	def start_recording(self, bag_name, topic_list, append):
 		bag_id = None
 		try:
-			res = self.record_start_srv(bag_name, topic_list, True)
+			res = self.record_start_srv(bag_name, topic_list, True, append)
 			if res.ret != res.SUCCESS:
 				rospy.logerr("Cannot open bag file " + bag_path + " ret: " + str(res))
 				return (False, None)
@@ -50,5 +50,3 @@ class BagManager:
 			return (False, None)
 
 		return (True, None)
-
-

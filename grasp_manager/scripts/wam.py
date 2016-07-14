@@ -39,7 +39,7 @@ class WAM:
 		self.transport_wam_pose = None
 
 		self.init_wam_sftp()
-		
+
 		# Start up the ros interface
 		rospy.loginfo("Waiting for wam services.")
 		rospy.wait_for_service("/wam/cart_move")
@@ -80,9 +80,9 @@ class WAM:
 		self.wam_ssh = client
 		self.wam_sftp = paramiko.SFTPClient.from_transport(client.get_transport())
 
-	def start_recording(self, logging_dir):
+	def start_recording(self, logging_dir, append_bag):
 		self.record_start_pub.publish(EmptyM())
-		self.wam_bag_id = self.bag_manager.start_recording(logging_dir + self.wam_traj_name, [self.wam_jnt_topic])[0]
+		self.wam_bag_id = self.bag_manager.start_recording(logging_dir + self.wam_traj_name, [self.wam_jnt_topic], append_bag)[0]
 		self.recording = True
 
 	def finish_recording(self):
