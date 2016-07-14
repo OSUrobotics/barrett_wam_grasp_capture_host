@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(grasp_manager)
 
-set( CMAKE_EXPORT_COMPILE_COMMANDS 1 )
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -117,6 +116,17 @@ target_link_libraries(polynomial_smoother ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(ror_filter src/ror_filter.cpp src/pcl_to_ros.cpp)
 target_link_libraries(ror_filter ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(pointcloud_registration src/pointcloud_registration.cpp src/pcl_to_ros.cpp)
+target_link_libraries(pointcloud_registration ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(object_segmentation src/object_segmentation.cpp src/pcl_to_ros.cpp)
+target_link_libraries(object_segmentation ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(alignment_prerejective src/alignment_prerejective.cpp src/pcl_to_ros.cpp src/mesh_sampler.cpp)
+target_link_libraries(alignment_prerejective ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(mesh_sampler src/mesh_sampler_driver.cpp)
+target_link_libraries(mesh_sampler ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(grasp_manager_node grasp_manager_generate_messages_cpp)
