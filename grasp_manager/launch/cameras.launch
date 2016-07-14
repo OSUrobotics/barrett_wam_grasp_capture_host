@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Start up the one-shot to provide single blocks of clouds for processing -->
+	<node name="topic_oneshot" type="topic_oneshot.py" pkg="grasp_manager" output="screen" >
+                <rosparam>
+                        in_topics: [/camera1/depth/points, /camera2/depth/points]
+                </rosparam>
+	</node>
+
+	<!-- Start up the two filtering and smoothing pipelines -->
+	<include file="$(find grasp_manager)/launch/registration_pipeline.launch" ns="camera1"/>
+	<include file="$(find grasp_manager)/launch/registration_pipeline.launch" ns="camera2"/>
+
+	<!-- Bring up the registration node -->
+	<node name="pointcloud_registrar" pkg="grasp_manager" type="pointcloud_registration" output="screen">
+		<remap from="~input1" to="/camera1/depth/points/smoothed" />
+		<remap from="~input2" to="/camera2/depth/points/smoothed" />
+		<remap from="~output" to="/registered_realsense" />
+	</node>
+</launch>
