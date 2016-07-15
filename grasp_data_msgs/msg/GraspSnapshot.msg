@@ -12,11 +12,15 @@ int32 optimal_num
 
 string task
 
-# Processed data at the time of the stamp above
+# Processed data from kinect at the time of the stamp above
 sensor_msgs/PointCloud2 cloud_image		# May be empty since kinect depth stream was intermittently down
 sensor_msgs/Image rgb_image
 sensor_msgs/Image depth_image
 sensor_msgs/CameraInfo cam_info
+
+# Processed data from realsense cameras
+sensor_msgs/PointCloud2 realsense_feed1
+sensor_msgs/PointCloud2 realsense_feed2
 
 # Robot joint states at this time
 sensor_msgs/JointState wam_joints

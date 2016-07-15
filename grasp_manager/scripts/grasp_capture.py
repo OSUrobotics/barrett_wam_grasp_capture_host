@@ -118,14 +118,14 @@ class GraspCapture:
         self.gui.show_info('Beginning robot grasp phase.')
         self.recording_gui_update()
 
-        self.human_kinect_bag_path = self.cur_grasp_data.get_log_dir() + "kinect_hand_capturel.bag"
+        self.human_kinect_bag_path = self.cur_grasp_data.get_log_dir() + "hand_scene_capturel.bag"
         self.init_robot_phase()
 
     def human_phase_first(self):
         self.gui.show_info("Starting human phase.")
         self.recording_gui_update()
 
-        self.human_kinect_bag_path = self.cur_grasp_data.get_log_dir() + "kinect_hand_capturef.bag"
+        self.human_kinect_bag_path = self.cur_grasp_data.get_log_dir() + "hand_scene_capturef.bag"
         self.init_human_phase()
 
     def recording_gui_update(self):
@@ -166,7 +166,7 @@ class GraspCapture:
         self.sounder_pub.publish()
         self.hand_logger.start_hand_capture();
         self.wam.start_recording(logging_dir, self.append_bag)
-        self.kinect_bag_id = self.bag_manager.start_recording(logging_dir + "kinect_robot_capture.bag", kinect_data_topics, self.append_bag)[0]
+        self.kinect_bag_id = self.bag_manager.start_recording(logging_dir + "robot_scene_capture.bag", scene_capture_topics, self.append_bag)[0]
 
         self.robot_recording = True
 
@@ -177,7 +177,7 @@ class GraspCapture:
 
         self.sounder_pub.publish(EmptyM())
         self.cur_grasp_data.start_human_grasp_annotations()
-        self.kinect_bag_id = self.bag_manager.start_recording(self.human_kinect_bag_path, kinect_data_topics, self.append_bag)[0]
+        self.kinect_bag_id = self.bag_manager.start_recording(self.human_kinect_bag_path, scene_capture_topics, self.append_bag)[0]
         time.sleep(0.1)
         self.cur_grasp_data.add_annotation("Human grasp capture start.")
 
@@ -270,6 +270,9 @@ class GraspData:
         self.starting_annotation_elements = ["_new_grasp", "_start_natural"]
         self.annotations_topic = "/grasp_annotations"
         self.annotations_pub = rospy.Publisher(self.annotations_topic, StampedString, queue_size=1)
+
+        self.rs1_pub = rospy.Publisher('/camera1/pointcloud_trigger', EmptyM, queue_size=1)
+        self.rs2_pub = rospy.Publisher('/camera2/pointcloud_trigger', EmptyM, queue_size=1)
 
         self.connect_to_gui()
         self.common_init()
@@ -374,6 +377,10 @@ class GraspData:
         else:
             rospy.logwarn('Annotations temporarily disabled.')
 
+    def snap_realsense(self):
+        self.rs1_pub.publish(EmptyM())
+        self.rs2_pub.publish(EmptyM())
+
     def add_new_grasp(self):
         self.gui.disable_element("_new_grasp")
         self.gui.disable_element("_rotation_symm")
@@ -389,6 +396,7 @@ class GraspData:
         self.gui.disable_element("_optimal_grasp")
         self.grasp_complete = True
         self.add_annotation(self.grasp_capture_annotation_messages['optimal'] + str(self.grasp_set_num))
+        self.snap_realsense()
         self.gui.show_info("Optimal grasp recorded.")
         self.gui.enable_element("_new_grasp")
         self.gui.enable_element("_rotation_symm")
@@ -397,6 +405,7 @@ class GraspData:
     def specify_extreme_grasp(self):
         self.grasp_extreme_num += 1
         self.add_annotation(self.grasp_capture_annotation_messages['extreme'][0] + str(self.grasp_extreme_num) + self.grasp_capture_annotation_messages['extreme'][1] + str(self.grasp_set_num))
+        self.snap_realsense()
         self.gui.show_info("Added extreme grasp " + str(self.grasp_extreme_num) + " for set " + str(self.grasp_set_num))
 
     def specify_rotational_symmetry(self):

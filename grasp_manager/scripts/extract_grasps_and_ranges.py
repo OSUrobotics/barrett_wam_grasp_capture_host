@@ -106,7 +106,7 @@ def get_grasp_timestamps(annotation_bag_path):
 # We want to publish a lot of frames to get an accurate kinect-robot transform, but
 #	we also want the pointcloud from a specific second. So, we publish few depth
 #	images and lots of rgb images.
-def repub_data_stamp(grasp_stamp, img_depth_bag, cam_info_spammer):
+def repub_data_stamp(grasp_stamp, video_bag, cam_info_spammer):
 	max_num_pub_msgs = 10
 	pub_next_msgs = -1
 	play_time = rospy.Duration(3.0)
@@ -116,7 +116,7 @@ def repub_data_stamp(grasp_stamp, img_depth_bag, cam_info_spammer):
 	depth_count = -1
 	rgb_img = None
 	played_depth = played_rgb = 0
-	for topic, msg, t in img_depth_bag.read_messages(start_time=(grasp_stamp - lead_time), end_time=(grasp_stamp + play_time)):
+	for topic, msg, t in video_bag.read_messages(start_time=(grasp_stamp - lead_time), end_time=(grasp_stamp + play_time)):
 		if msg.header.stamp >= grasp_stamp and "color" in topic and pub_next_msgs == -1:
 			rgb_img = msg
 			pub_next_msgs = max_num_pub_msgs
@@ -225,12 +225,12 @@ if __name__ == "__main__":
 				grasp_abs_num = grasp_tuple[1]
 
 				# Create the unified message
-				img_depth_bag = rosbag.Bag(data_dir_path + "/" + "kinect_robot_capture.bag")
+				video_bag = rosbag.Bag(data_dir_path + "/" + "robot_scene_capture.bag")
 				relevant_data = Recapturer()
 				data_retrievable = -1
 				grasp_cloud = None
 				while True:
-					data_retrievable = repub_data_stamp(grasp_stamp, img_depth_bag, cam_info_spammer)
+					data_retrievable = repub_data_stamp(grasp_stamp, video_bag, cam_info_spammer)
 					if data_retrievable < 3:
 						break
 					try:

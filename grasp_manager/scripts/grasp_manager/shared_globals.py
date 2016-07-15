@@ -20,3 +20,6 @@ grasping_data_folder = base_dir + '/grasping_data/'
 
 kinect_topic_prefix = "/kinect2/qhd/"
 kinect_data_topics = [kinect_topic_prefix + "image_color_rect/compressed", kinect_topic_prefix + "image_depth_rect/compressed"]
+
+# All topics necessary for image capture and physical scene reconstruction
+scene_capture_topics = kinect_data_topics + ['/camera1/depth/points/world_frame', 'camera2/depth/points/world_frame']

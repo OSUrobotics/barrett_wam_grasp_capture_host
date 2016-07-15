@@ -29,6 +29,12 @@
 		<arg name="cam_info_topic" value="rgb/camera_info" />
 		<arg name="output_frame" value="$(arg camera1_ns)_rgb_optical_frame" />
 	</include>
+	<node name="online_pointcloud_transformer" type="online_pointcloud_transformer" pkg="grasp_manager" output="screen" ns="$(arg camera1_ns)">
+		<remap from="~trigger" to="pointcloud_trigger"/>
+		<remap from="~input" to="depth/points" />
+		<remap from="~output" to="depth/points/world_frame" />
+		<rosparam param="target_frame">ar_marker_5</rosparam>
+	</node>
 	
 	<!-- The other camera -->
 	<include file="$(find realsense_camera)/launch/includes/realsense_r200_multiple_cameras.launch.xml">
@@ -45,4 +51,10 @@
 		<arg name="cam_info_topic" value="rgb/camera_info" />
 		<arg name="output_frame" value="$(arg camera2_ns)_rgb_optical_frame" />
 	</include>
+	<node name="online_pointcloud_transformer" type="online_pointcloud_transformer" pkg="grasp_manager" output="screen" ns="$(arg camera2_ns)">
+		<remap from="~trigger" to="pointcloud_trigger"/>
+		<remap from="~input" to="depth/points" />
+		<remap from="~output" to="depth/points/world_frame" />
+		<rosparam param="target_frame">ar_marker_5</rosparam>
+	</node>
 </launch>

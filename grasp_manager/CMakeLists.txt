@@ -116,7 +116,7 @@ target_link_libraries(polynomial_smoother ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(ror_filter src/ror_filter.cpp src/pcl_to_ros.cpp)
 target_link_libraries(ror_filter ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(online_pointcloud_transformer src/online_pointcloud_transformer.cpp)
+add_executable(online_pointcloud_transformer src/online_pointcloud_transformer.cpp src/pcl_to_ros.cpp)
 target_link_libraries(online_pointcloud_transformer ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(pointcloud_registration src/pointcloud_registration.cpp src/pcl_to_ros.cpp)
