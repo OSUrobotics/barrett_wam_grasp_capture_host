@@ -43,7 +43,7 @@ poly_filter_cb(const sensor_msgs::PointCloud2::ConstPtr& msg)
 	sensor_msgs::PointCloud2::Ptr out_cloud = toROSMsg(mls_points);
 	pub->publish(out_cloud);
 }
-
+/*
 string get_param_fatal(const char* param_name)
 {
 	if (!ros::param::has(param_name)) {
@@ -59,20 +59,21 @@ string get_param_fatal(const char* param_name)
 	
 	return out_str;
 }
+*/
 
 int
 main (int argc, char** argv)
 {
 	// Initialize the ros interface
 	ros::init(argc, argv, "polynomial_smoother");
-	ros::NodeHandle nh;
+	ros::NodeHandle nh("~");
 	ROS_INFO("PCL Polynomial Smoother online!");
 
-	std::string in_topic = get_param_fatal("~in_topic");
-	std::string out_topic = get_param_fatal("~out_topic");
+	//std::string in_topic = get_param_fatal("~in_topic");
+	//std::string out_topic = get_param_fatal("~out_topic");
 
-	ros::Subscriber sub = nh.subscribe(in_topic, 1, poly_filter_cb);
-	ros::Publisher _pub = nh.advertise<sensor_msgs::PointCloud2>(out_topic, 5);
+	ros::Subscriber sub = nh.subscribe("input", 1, poly_filter_cb);
+	ros::Publisher _pub = nh.advertise<sensor_msgs::PointCloud2>("output", 5);
 	pub = &_pub;
 
 	ros::spin();
