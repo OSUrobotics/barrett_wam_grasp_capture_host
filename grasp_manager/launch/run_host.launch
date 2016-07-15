@@ -11,4 +11,7 @@
 	
 	<!-- Start up the kinect -->
 	<include file="$(find grasp_manager)/launch/kinect2.launch" />
+
+	<!-- Start up the realsenses -->
+	<include file="$(find grasp_manager)/launch/realsense.launch" />
 </launch>

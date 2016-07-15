@@ -117,6 +117,9 @@ target_link_libraries(polynomial_smoother ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(ror_filter src/ror_filter.cpp src/pcl_to_ros.cpp)
 target_link_libraries(ror_filter ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(online_pointcloud_transformer src/online_pointcloud_transformer.cpp)
+target_link_libraries(online_pointcloud_transformer ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(grasp_manager_node grasp_manager_generate_messages_cpp)
