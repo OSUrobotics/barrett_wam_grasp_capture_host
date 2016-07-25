@@ -12,7 +12,7 @@ class GraspPlayback:
 		self.hand_cmd_blk_srv rospy.ServiceProxy("/bhand/hand_cmd_blocking", HandCommandBlk)
 		self.hand_playback_start_pub = rospy.Publisher('start_hand_playback', String, queue_size=1)
 		self.hand_playback_stop_pub = rospy.Publisher('stop_hand_playback', EmptyM, queue_size=1)
-		
+
 
 	def setup_playback(self, bag_file):
 		setup_hand(self.hand_cmd_blk_srv)

@@ -62,7 +62,7 @@ class GraspCapture:
             self.gui.show_error("Using harddrive for storage.")
             rospy.loginfo("Using harddrive.")
         else:
-            grasp_info_dir = local_data_path
+            grasp_info_dir = local_data_path + '/' + grasp_info_dir.split('/')[-1]
             self.gui.show_error("Not using harddrive for storage. Using local")
             rospy.logerr("Not using harddrive for storage. Using local")
 ############################
@@ -96,7 +96,7 @@ class GraspCapture:
 #        #        if msg.data = 
 #        self.cur_grasp_data.allow_annotations()
 
-    def common_startup(self)
+    def common_startup(self):
         # Ensure that the old trial has ended
         if self.cur_grasp_data.initialized:
             self.gui.show_error("Current grasp trial not complete. Not beginning new trial")
@@ -106,12 +106,12 @@ class GraspCapture:
         self.current_phase = 0
         self.gui.show_info("Beginning new trial.")
 
-        if not self.cur_grasp_data.make_data_dir(self.append_bag:):
+        if not self.cur_grasp_data.make_data_dir(self.append_bag):
             return
 
         self.hand_logger.set_log_dir(self.cur_grasp_data.get_log_dir())
         self.gui.disable_element("_begin_trial")
-        self.gui.disable_element("_resume_trial")
+        #self.gui.disable_element("_resume_trial")
         enable_gui_elements(self.gui, ["_robot_phase_first", "_human_phase_first"])
 
     def robot_phase_first(self):
@@ -163,7 +163,7 @@ class GraspCapture:
 
         self.cur_grasp_data.add_annotation("Motion Capture Start")
         logging_dir = self.cur_grasp_data.get_log_dir()
-        self.sounder_pub.publish()
+        #self.sounder_pub.publish()
         self.hand_logger.start_hand_capture();
         self.wam.start_recording(logging_dir, self.append_bag)
         self.kinect_bag_id = self.bag_manager.start_recording(logging_dir + "robot_scene_capture.bag", scene_capture_topics, self.append_bag)[0]
@@ -175,7 +175,7 @@ class GraspCapture:
         rospy.loginfo("Beginning human capture phase.")
         self.kinect.resume_monitors()
 
-        self.sounder_pub.publish(EmptyM())
+        #self.sounder_pub.publish(EmptyM())
         self.cur_grasp_data.start_human_grasp_annotations()
         self.kinect_bag_id = self.bag_manager.start_recording(self.human_kinect_bag_path, scene_capture_topics, self.append_bag)[0]
         time.sleep(0.1)
@@ -264,6 +264,7 @@ class GraspData:
         global grasp_capture_annotation_messages
         self.gui = gui
         self.bag_manager = bag_manager
+        self.append_bag = True
         self.grasp_capture_annotation_messages = grasp_capture_annotation_messages
         self.workflow_elements = ["_good_bad", "_sub_num", "_obj_num", "_begin_trial"]
         self.annotation_elements = ["_new_grasp", "_extreme_grasp", "_optimal_grasp", "_rotation_symm", "_start_natural"]

@@ -31,11 +31,11 @@ class HandLogger:
 		if self.log_dir == None:
 			rospy.logerr("No log directory set to record hand motion.")
 			return
-		
+
 		bag_path = self.log_dir + self.bag_name
 		topic_list = ["/bhand/hand_cmd", "/bhand/joint_states"]
 
-		res = self.bag_manager.start_recording(bag_path, topic_list)
+		res = self.bag_manager.start_recording(bag_path, topic_list, True)
 		if res[0] == False:
 			rospy.logerr("Hand capture bagging returned " + str(res.response.ret))
 		else:

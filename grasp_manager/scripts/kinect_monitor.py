@@ -2,23 +2,23 @@ import rospy
 from threading import Lock
 
 from topic_monitor import TopicMonitor
-from grasp_manager.shared_globals import kinect_data_topics
+from grasp_manager.shared_globals import scene_capture_topics
 
 class KinectMonitor:
         # Parameters:
         #   topic_dict: a pairing of topic strings and associated callbacks
     def __init__(self, gm, gui):
-        global kinect_data_topics
+        global scene_capture_topics
         self.gui = gui
         self.grasp_manager = gm
-        self.acceptable_timeout = rospy.Duration(0.25)
+        self.acceptable_timeout = rospy.Duration(1.5)
         self.startup_delay = rospy.Duration(1)
 
         self.topic_dict = {}
         self.topic_dict[scene_capture_topics[0]] = self.kinect_rgb_down
         self.topic_dict[scene_capture_topics[1]] = self.kinect_depth_down
-        self.topic_dict[scene_capture_topics[2]] = self.realsense1_down
-        self.topic_dict[scene_capture_topics[3]] = self.realsense2_down
+        self.topic_dict['/'.join(scene_capture_topics[2].split('/')[:-1])] = self.realsense1_down
+        self.topic_dict['/'.join(scene_capture_topics[3].split('/')[:-1])] = self.realsense2_down
 
         self.video_need_reset_sync = Lock() # Ensures only one reset mechanism goes through the process of a reset
         self.video_reset_lock = Lock() # Prevents continuation of the grasp_manager until kinect reset occurs
@@ -46,7 +46,10 @@ class KinectMonitor:
             self.monitor_dict[k].resume_monitor()
 
     def video_reset(self):
-        self.video_reset_lock.release()
+        try:
+            self.video_reset_lock.release()
+        except thread.error:
+            rospy.logerr("Lock already released.")
 
     def kinect_rgb_down(self):
         rospy.logerr("Kinect RGB stream down! The video capture software (or hardware) needs a reset before proceeding.")
@@ -68,8 +71,8 @@ class KinectMonitor:
 
     def realsense1_down(self):
         rospy.logerr("Realsense camera 1 down. Needs reset before proceeding.")
-        video_reset_common()
+        self.video_reset_common()
 
     def realsense2_down(self):
         rospy.logerr("Realsense camera 2 down. Needs reset before proceeding.")
-        video_reset_common()
+        self.video_reset_common()

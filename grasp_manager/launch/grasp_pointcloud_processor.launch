@@ -7,12 +7,7 @@
 	<arg name="kinect_prefix" value="/kinect2/qhd"/>
 
 	<!--<node name="image_replay" type="play" pkg="rosbag" args="clock "-->
-	<!--<node name="rosbag" type="play" pkg="rosbag" args="-l $(find grasp_manager)/config/kinect2_cam_info.bag">
-		<remap from="/kinect2/qhd/camera_info" to="/kinect2/qhd/camera_info_raw" />
-	</node>-->
-
-	<!--<node name="camera_info_repub" type="camera_info_repub.py" pkg="grasp_manager" output="screen"/>-->
-
+		
 	<!-- AR Transform Publisher -->
 	<include file="$(find grasp_manager)/launch/ar_publisher.launch"/>
 

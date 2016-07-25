@@ -90,13 +90,13 @@ def find_fragmented_subjects(data_dir, defrag_suffix):
 def get_dir_relative_timestamp(base_dir):
 	sample_bag = None
 	sample_bag_path = base_dir + "/" + "human_grasp_annotations.bag"
-	bag_list = ['human_grasp_annotations.bag', 'robot_grasp_annotations.bag', 'wam_traj.bag', 'hand_commands.bag', 'kinect_hand_capturef.bag', 'kinect_hand_capturel.bag', 'kinect_robot_capture.bag']
+	bag_list = ['human_grasp_annotations.bag', 'robot_grasp_annotations.bag', 'wam_traj.bag', 'hand_commands.bag', 'hand_scene_capturef.bag', 'hand_scene_capturel.bag', 'robot_scene_capture.bag']
 	for b in bag_list:
 		try:
 			return get_bag_start(base_dir + "/" + b)
 		except:
 			rospy.logwarn("Failed to get first timestamp.")
-		
+
 	rospy.logerr("No timestamp available for data dir: " + sample_bag_path)
 	raise IOError
 
@@ -114,9 +114,9 @@ def merge_data(grasp_data_directory, base_file_name, defrag_suffix, frag_dirs):
 		frag_dirs[idx] = grasp_data_directory + "/" + dir_name[0]
 
 	# Simple concatenation
-	concatenate_bags(defrag_dir, frag_dirs, "kinect_robot_capture.bag")
-	concatenate_bags(defrag_dir, frag_dirs, "kinect_hand_capturef.bag")
-	concatenate_bags(defrag_dir, frag_dirs, "kinect_hand_capturel.bag")
+	concatenate_bags(defrag_dir, frag_dirs, "robot_scene_capture.bag")
+	concatenate_bags(defrag_dir, frag_dirs, "hand_scene_capturef.bag")
+	concatenate_bags(defrag_dir, frag_dirs, "hand_scene_capturel.bag")
 	concatenate_bags(defrag_dir, frag_dirs, "wam_traj.bag")
 	concatenate_bags(defrag_dir, frag_dirs, "hand_commands.bag")
 

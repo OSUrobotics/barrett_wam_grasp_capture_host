@@ -33,7 +33,7 @@
 		<remap from="~trigger" to="pointcloud_trigger"/>
 		<remap from="~input" to="depth/points" />
 		<remap from="~output" to="depth/points/world_frame" />
-		<rosparam param="target_frame">ar_marker_5</rosparam>
+		<rosparam param="target_frame">ar_marker_4</rosparam>
 	</node>
 	
 	<!-- The other camera -->
@@ -55,6 +55,6 @@
 		<remap from="~trigger" to="pointcloud_trigger"/>
 		<remap from="~input" to="depth/points" />
 		<remap from="~output" to="depth/points/world_frame" />
-		<rosparam param="target_frame">ar_marker_5</rosparam>
+		<rosparam param="target_frame">ar_marker_4</rosparam>
 	</node>
 </launch>
