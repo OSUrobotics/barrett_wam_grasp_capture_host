@@ -21,7 +21,7 @@ class App(BaseWidget):
         self.add_order_choice_elements()
         self.add_capture_elements()
 
-        self._formset = ["_info_box", "_error_box", ("_good_bad", "_obj_num", "_sub_num", "_begin_trial"), ("_robot_phase_first", "_human_phase_first"), "_video_reset", ("_end_phase", "_begin_next_phase"), ("_new_grasp", "_optimal_grasp", "_extreme_grasp"), ("_start_natural", "_rotation_symm")]
+        self._formset = ["_info_box", "_error_box", ("_good_bad", "_obj_num", "_sub_num", "_begin_trial"), ("_robot_phase_first", "_human_phase_first"), "_video_reset", ("_end_phase", "_begin_next_phase"), ("_new_grasp", "_optimal_grasp", "_extreme_grasp_start", "extreme_grasp_end"), ("_start_natural", "_rotation_symm")]
 
         # Create the control structures and hook them up
         self.grasp_capture = grasp_capture.GraspCapture(self)
@@ -49,7 +49,8 @@ class App(BaseWidget):
         self.add_button('_begin_next_phase', "Begin Next Phase")
 
         self.add_button("_new_grasp", "New Grasp")
-        self.add_button("_extreme_grasp", "Add Extreme Grasp")
+        self.add_button("_extreme_grasp_start", "Begin Extreme Grasp Spec")
+        self.add_button("_extreme_grasp_end", "End Extreme Grasp Spec")
         self.add_button("_optimal_grasp", "Add Optimal Grasp")
         self.add_button("_rotation_symm", "Add Rotational Symmetry")
         self.add_button("_start_natural", "Start Natural Task")

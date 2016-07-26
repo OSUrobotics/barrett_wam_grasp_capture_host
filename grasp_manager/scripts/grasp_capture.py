@@ -18,7 +18,7 @@ from gui_utils import *
 from hand_logger import *
 
 # Colons denote that a value will follow. There will be no spaces.
-grasp_capture_annotation_messages = {"new_grasp":"Begin grasp set:", "extreme":["Grasp range extreme:", ":for grasp set:"], "optimal":"Optimal grasp for grasp set:", "rotation":"There is rotational symmetry about this axis for grasp set:", "natural":"Start of natural task."}
+grasp_capture_annotation_messages = {"new_grasp":"Begin grasp set:", "extreme":["Grasp range extreme:", ":for grasp set:", "End grasp extreme specification"], "optimal":"Optimal grasp for grasp set:", "rotation":"There is rotational symmetry about this axis for grasp set:", "natural":"Start of natural task."}
 
 class GraspCapture:
     def __init__(self, gui):
@@ -284,7 +284,8 @@ class GraspData:
     def connect_to_gui(self):
         self.gui.register_button_cb("_new_grasp", self.add_new_grasp)
         self.gui.register_button_cb("_optimal_grasp", self.specify_optimal_grasp)
-        self.gui.register_button_cb("_extreme_grasp", self.specify_extreme_grasp)
+        self.gui.register_button_cb("_extreme_grasp_start", self.start_extreme_grasp)
+        self.gui.register_button_cb("_extreme_grasp_end", self.end_extreme_grasp)
         self.gui.register_button_cb("_rotation_symm", self.specify_rotational_symmetry)
         self.gui.register_button_cb("_start_natural", self.start_natural_task)
 
@@ -403,11 +404,16 @@ class GraspData:
         self.gui.enable_element("_rotation_symm")
         self.gui.enable_element("_start_natural")
 
-    def specify_extreme_grasp(self):
+    def start_extreme_grasp(self):
         self.grasp_extreme_num += 1
         self.add_annotation(self.grasp_capture_annotation_messages['extreme'][0] + str(self.grasp_extreme_num) + self.grasp_capture_annotation_messages['extreme'][1] + str(self.grasp_set_num))
         self.snap_realsense()
         self.gui.show_info("Added extreme grasp " + str(self.grasp_extreme_num) + " for set " + str(self.grasp_set_num))
+        self.gui.enable_element("_extreme_grasp_end")
+
+    def end_extreme_grasp(self):
+        self.add_annotation(self.grasp_capture_annotation_messages['extreme'][2]
+        self.gui.enable_element("_extreme_grasp_start")
 
     def specify_rotational_symmetry(self):
         self.add_annotation(self.grasp_capture_annotation_messages['rotation'] + str(self.grasp_set_num))
