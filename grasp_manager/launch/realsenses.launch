@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<launch>
+	<!--<arg name="fps" value="30" /> -->
+	<arg name="camera1_ns" value="camera1" />
+	<arg name="camera2_ns" value="camera2" />
+
+	<!-- Single nodelet manager for all cameras -->
+	<arg name="manager"             value="nodelet_manager" />
+	<arg name="num_worker_threads"  default="3" /> <!-- Allocate at least 1 thread for each camera -->
+	<arg name="debug"               default="false" /> <!-- Run manager in GDB? -->
+	<include file="$(find rgbd_launch)/launch/includes/manager.launch.xml">
+		<arg name="name"                value="$(arg manager)" />
+		<arg name="debug"               value="$(arg debug)" />
+		<arg name="num_worker_threads"  value="$(arg num_worker_threads)" />
+	</include>
+	
+	<include file="$(find grasp_manager)/launch/realsense.launch" ns="$(arg camera1_ns)">
+		<arg name="manager"     value="nodelet_manager" />
+		<arg name="serial_no"	value="2191300230" />
+		<arg name="camera_ns"	value="camera1" />
+		<arg name="realsense_fps" value="10" />
+		<arg name="ar_marker"	value="ar_marker_4" />
+	</include>
+	
+	<include file="$(find grasp_manager)/launch/realsense.launch" ns="$(arg camera2_ns)">
+		<arg name="manager"     value="nodelet_manager" />
+		<arg name="ar_marker"	value="ar_marker_4" />
+		<arg name="serial_no"	value="2191300170" />
+		<arg name="realsense_fps" value="10" />
+		<arg name="camera_ns"	value="$(arg camera2_ns)" />
+	</include>
+</launch>

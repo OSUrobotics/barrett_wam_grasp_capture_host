@@ -1,60 +1,33 @@
 <?xml version="1.0"?>
 <launch>
-	<!--<arg name="fps" value="30" /> -->
-	<arg name="camera1_ns" value="camera1" />
-	<arg name="camera2_ns" value="camera2" />
-
-	<!-- Single nodelet manager for all cameras -->
-	<arg name="manager"             value="nodelet_manager" />
-	<arg name="num_worker_threads"  default="3" /> <!-- Allocate at least 1 thread for each camera -->
-	<arg name="debug"               default="false" /> <!-- Run manager in GDB? -->
-	<include file="$(find rgbd_launch)/launch/includes/manager.launch.xml">
-		<arg name="name"                value="$(arg manager)" />
-		<arg name="debug"               value="$(arg debug)" />
-		<arg name="num_worker_threads"  value="$(arg num_worker_threads)" />
-	</include>
-
 	<!-- One camera -->
-	<include file="$(find realsense_camera)/launch/includes/realsense_r200_multiple_cameras.launch.xml">
-		<!-- Immutable parameters -->
-		<arg name="manager"	value="$(arg manager)" />
-		<arg name="serial_no"	value="2191300230" />
-		<arg name="usb_port_id" value="" /> <!--USB "Bus#-Port#"-->
+	<arg name="manager" default=""/>
+	<arg name="serial_no" default=""/>
+	<arg name="camera_ns" default=""/>
+	<arg name="ar_marker" default=""/>
+	<arg name="realsense_fps" default=""/>
 
-		<!-- Mutable parameters -->
-		<arg name="camera"	value="$(arg camera1_ns)" />
+	<include file="$(find realsense_camera)/launch/includes/realsense_r200_multiple_cameras.launch.xml">
+		<arg name="manager"	value="$(arg manager)" />
+		<arg name="serial_no"	value="$(arg serial_no)" />
+		<arg name="usb_port_id" value="" /> 
+
+		<arg name="camera"	value="$(arg camera_ns)" />
 	</include>
-	<include file="$(find grasp_manager)/launch/ar_publisher.launch" ns="$(arg camera1_ns)">
+	<include file="$(find grasp_manager)/launch/ar_publisher.launch">
 		<arg name="cam_image_topic" value="rgb/image_raw" />
 		<arg name="cam_info_topic" value="rgb/camera_info" />
-		<arg name="output_frame" value="$(arg camera1_ns)_rgb_optical_frame" />
+		<arg name="output_frame" value="$(arg camera_ns)_rgb_optical_frame" />
 	</include>
-	<node name="online_pointcloud_transformer" type="online_pointcloud_transformer" pkg="grasp_manager" output="screen" ns="$(arg camera1_ns)">
+	<node name="online_pointcloud_transformer" type="online_pointcloud_transformer" pkg="grasp_manager" output="screen" >
 		<remap from="~trigger" to="pointcloud_trigger"/>
 		<remap from="~input" to="depth/points" />
 		<remap from="~output" to="depth/points/world_frame" />
-		<rosparam param="target_frame">ar_marker_4</rosparam>
+		<rosparam param="target_frame">$(arg ar_marker)</rosparam>
 	</node>
-	
-	<!-- The other camera -->
-	<include file="$(find realsense_camera)/launch/includes/realsense_r200_multiple_cameras.launch.xml">
-		<!-- Immutable parameters -->
-		<arg name="manager"	value="$(arg manager)" />
-		<arg name="serial_no"	value="2191300170" />
-		<arg name="usb_port_id" value="" /> <!--USB "Bus#-Port#"-->
 
-		<!-- Mutable parameters -->
-		<arg name="camera"	value="$(arg camera2_ns)" />
-	</include>
-	<include file="$(find grasp_manager)/launch/ar_publisher.launch" ns="$(arg camera2_ns)">
-		<arg name="cam_image_topic" value="rgb/image_raw" />
-		<arg name="cam_info_topic" value="rgb/camera_info" />
-		<arg name="output_frame" value="$(arg camera2_ns)_rgb_optical_frame" />
-	</include>
-	<node name="online_pointcloud_transformer" type="online_pointcloud_transformer" pkg="grasp_manager" output="screen" ns="$(arg camera2_ns)">
-		<remap from="~trigger" to="pointcloud_trigger"/>
-		<remap from="~input" to="depth/points" />
-		<remap from="~output" to="depth/points/world_frame" />
-		<rosparam param="target_frame">ar_marker_4</rosparam>
+	<!-- Realsense fps rate limiters -->
+	<node pkg="topic_tools" type="throttle" name="realsense_throttle" output='screen' args='messages rgb/image_raw $(arg realsense_fps) rgb/image_raw/throttled'>
+		<rosparam param='lazy'>True</rosparam>
 	</node>
 </launch>
