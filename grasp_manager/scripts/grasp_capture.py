@@ -31,7 +31,7 @@ wam_traj_name = "wam_traj.bag"
 wam_traj_location = "/tmp/" + wam_traj_name
 wam_sftp = None
 wam_ssh = None
-wam_traj_dir = os.path.expanduser("~") + "/wam_tool_design_trajectories"
+wam_traj_dir = os.path.expanduser("~") + "/grasp_slippage_trajectories"
 #kinect_topic_prefix = "/kinect2/qhd/"
 #kinect_data_topics = [kinect_topic_prefix + "image_color_rect/compressed", kinect_topic_prefix + "image_depth_rect/compressed"]
 
