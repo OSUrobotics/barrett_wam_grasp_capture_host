@@ -463,7 +463,7 @@ def move_wam_home(wam_home_srv):
 	#except:
 	#	rospy.logerr("Can't move the WAM home...")
 
-def automatic_hand_close(command_pub)
+def automatic_hand_close():
         the_joint_data = joint_data_feedback() #Start getting joint feed back
         command_pub = rospy.Publisher("bhand_node/command", JointState, queue_size=100    ) #Need this send messages to the barrett hand
 
@@ -473,12 +473,12 @@ def automatic_hand_close(command_pub)
         grasp["Finger 2(rads)"] = 1.26 
         grasp["Finger 3(rads)"] = 1.24
         grasp["Spread (rads)"] = 0.01
-        grasp["J position1"] = (-7.55)*math.pi)/180
-        grasp["J position2"] = (-13.67)*math.pi)/180
-        grasp["J position3"] = (166.20)*math.pi)/180
-        grasp["J position4"] = (-98.97)*math.pi)/180
-        grasp["J position5"] = (-91.26)*math.pi)/180
-        grasp["J position6"] = (-22.85)*math.pi)/180
+        grasp["J position1"] = ((-7.55)*math.pi)/180
+        grasp["J position2"] = ((-13.67)*math.pi)/180
+        grasp["J position3"] = ((166.20)*math.pi)/180
+        grasp["J position4"] = ((-98.97)*math.pi)/180
+        grasp["J position5"] = ((-91.26)*math.pi)/180
+        grasp["J position6"] = ((-22.85)*math.pi)/180
 	
 	cur_hand_jts = [0, grasp["Finger 1(rads)"], grasp["Finger 2(rads)"], grasp["Finger 3(rads)"], 0, 0, grasp["Spread (rads)"], 0 ]
         send_hand_position(command_pub, cur_hand_jts)
