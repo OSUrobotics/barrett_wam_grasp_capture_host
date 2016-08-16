@@ -18,6 +18,10 @@ from bag_manager import BagManager
 from shared_globals import *
 from wam_playback import *
 
+from joint_operations import *
+from hand_control import send_hand_position 
+from sensor_msgs.msg import JointState
+
 #grasp_info_dir = os.path.expanduser("~") + "/grasp_data"	# The fully qualified path to the grasp data
 #grasp_info_dir = "/media/sonny/FA648F24648EE2AD/grasp_data"	# The fully qualified path to the grasp data
 cur_wam_pose = None
@@ -459,6 +463,66 @@ def move_wam_home(wam_home_srv):
 	#except:
 	#	rospy.logerr("Can't move the WAM home...")
 
+def automatic_hand_close(command_pub)
+        the_joint_data = joint_data_feedback() #Start getting joint feed back
+        command_pub = rospy.Publisher("bhand_node/command", JointState, queue_size=100    ) #Need this send messages to the barrett hand
+
+        time.sleep(2)
+	grasp = {} #type of grasp to be automatically graspped
+        grasp["Finger 1(rads)"] = 1.24
+        grasp["Finger 2(rads)"] = 1.26 
+        grasp["Finger 3(rads)"] = 1.24
+        grasp["Spread (rads)"] = 0.01
+        grasp["J position1"] = (-7.55)*math.pi)/180
+        grasp["J position2"] = (-13.67)*math.pi)/180
+        grasp["J position3"] = (166.20)*math.pi)/180
+        grasp["J position4"] = (-98.97)*math.pi)/180
+        grasp["J position5"] = (-91.26)*math.pi)/180
+        grasp["J position6"] = (-22.85)*math.pi)/180
+	
+	cur_hand_jts = [0, grasp["Finger 1(rads)"], grasp["Finger 2(rads)"], grasp["Finger 3(rads)"], 0, 0, grasp["Spread (rads)"], 0 ]
+        send_hand_position(command_pub, cur_hand_jts)
+        time.sleep(0.3)
+
+        # Find which fingers we're supposed to close
+        close_list = []
+        close_threshold = 0.05
+        if grasp["Finger 1(rads)"] > close_threshold:
+                close_list.append( (the_joint_data.get_velocity1, 0) )
+
+        if grasp["Finger 2(rads)"] > close_threshold:
+                close_list.append( (the_joint_data.get_velocity2, 1) )
+
+        if grasp["Finger 3(rads)"] > close_threshold:
+                close_list.append( (the_joint_data.get_velocity3, 2) )
+
+        # Iterate over each finger closing them until each has hit an effort max
+        grasp_inc = [0,0,0]
+        while len(close_list) > 0:
+                for f_vel, f_idx in close_list[:]:
+                        print "Current max for finger ", (f_idx + 1), ": ", f_vel()
+                        if f_vel() < .01 :
+                                close_list.remove( (f_vel, f_idx) )
+                                grasp_inc[f_idx] = 0
+                        else:
+                                # The finger needs more closing
+                                grasp_inc[f_idx] = 0.02
+
+                # Publish updated finger positions
+                cur_hand_jts[1] += grasp_inc[0]
+                cur_hand_jts[2] += grasp_inc[1]
+                cur_hand_jts[3] += grasp_inc[2]
+                send_hand_position(command_pub, cur_hand_jts)
+                time.sleep(.1)
+
+	#So the grasp is nice and snug
+        cur_hand_jts[1] += .07
+        cur_hand_jts[2] += .07
+        cur_hand_jts[3] += .07
+        send_hand_position(command_pub, cur_hand_jts)
+
+
+        return cur_hand_jts
 
 def do_record(record_start_pub, record_stop_pub, bag_manager, wam_jnt_topic):
     global wam_traj_dir
@@ -500,16 +564,19 @@ def do_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, wam_tra
             while True:
 	        setup_playback(hand_cmd_blk_srv, playback_load_srv, bag_path)
                 playback_start_pub.publish(EmptyM())
+                t = raw_input("Press [Enter] when the robot has reached its goal position.")
+                automatic_hand_close()
+
                 usr_input = raw_input("Repeat ([Enter] for yes, q for no): ")
                 if usr_input != '':
                     break
 
+	    send_hand_position(command_pub, [0,0,0,0,0,0,0,0])
             print "playback complete."
             #raw_input("Press enter to move wam home.")
 	    #move_wam_home(wam_home_srv)
     else:
         print "Empty input detected. Skipping."
-
 
 
 if __name__ == "__main__":
@@ -549,7 +616,7 @@ if __name__ == "__main__":
             if usr_input.lower() == 'r':
                 do_record(record_start_pub, record_stop_pub, bag_manager, wam_jnt_topic)
             elif usr_input.lower() == 'p':
-                do_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, wam_traj_name, wam_home_srv)
+                do_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, wam_traj_name, wam_home_srv)		
             elif usr_input.lower() == 'q':
                 break
             else:
