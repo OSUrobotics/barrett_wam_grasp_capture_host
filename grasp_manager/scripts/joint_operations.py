@@ -6,10 +6,10 @@ class joint_data_feedback:
 
 	def __init__(self):
 		self.data = None	
-		joints_listner = rospy.Subscriber('/joint_states', JointState, self.callback)
+		joints_listner = rospy.Subscriber('/bhand/joint_states', JointState, self.callback)
 		
 		self.effort_rate_maxes = [0,0,0]
-		self.avg_window = 40 #samples
+		self.avg_window = 3 #samples
 		self.velocity_average_data = [[0]*self.avg_window, [0]*self.avg_window, [0]*self.avg_window]
 		self.velocity_idx = 0
 
