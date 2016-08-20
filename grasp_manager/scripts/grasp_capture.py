@@ -478,9 +478,9 @@ def automatic_hand_close():
 
         #time.sleep(2)
         grasp = {} #type of grasp to be automatically graspped
-        grasp["Finger 1(rads)"] = 1.24
-        grasp["Finger 2(rads)"] = 1.26 
-        grasp["Finger 3(rads)"] = 1.24
+        grasp["Finger 1(rads)"] = 1.26
+        grasp["Finger 2(rads)"] = 1.27 
+        grasp["Finger 3(rads)"] = 1.26
         grasp["Spread (rads)"] = 0.01
         #grasp["J position1"] = ((-7.55)*math.pi)/180
         #grasp["J position2"] = ((-13.67)*math.pi)/180
@@ -517,7 +517,7 @@ def automatic_hand_close():
         while len(close_list) > 0:
             for f_vel, f_idx in close_list[:]:
                 print "Current max for finger ", (f_idx + 1), ": ", f_vel()
-                if f_vel() < .1:
+                if f_vel() < .27:
                         close_list.remove( (f_vel, f_idx) )
                         grasp_inc[f_idx] = 0
                 else:
@@ -532,9 +532,9 @@ def automatic_hand_close():
             time.sleep(.1)
 
         #So the grasp is nice and snug
-        msg.f1 += .05
-        msg.f2 += .05
-        msg.f3 += .05
+        msg.f1 += .01
+        msg.f2 += .01
+        msg.f3 += .01
         command_pub.publish(msg)
 
 def auto_open_hand():
@@ -590,7 +590,6 @@ def do_playback(hand_cmd_blk_srv, playback_load_srv, playback_start_pub, wam_tra
                 setup_playback(hand_cmd_blk_srv, playback_load_srv, bag_path)
                 playback_start_pub.publish(EmptyM())
                 t = raw_input("Press [Enter] when the robot has reached its goal position.")
-                automatic_hand_close()
                 break    
                 #usr_input = raw_input("Repeat ([Enter] for yes, q for no): ")
                 #if usr_input != '':
@@ -648,10 +647,15 @@ def do_lift(joint_move_srv):
     bag_effort.close()
     # Stop rosbag effort
  
-    auto_open_hand()
-    time.sleep(5)
     # Move the WAM down
-    srv.joints[1] = wam_pos[1]- 0.2 # Set these from previous joints
+    srv.joints[1] = wam_pos[1]- 0.1 # Set these from previous joints
+    joint_move_srv(srv)
+    time.sleep(1) 
+    auto_open_hand()
+    time.sleep(7)
+    
+    # Move the WAM down
+    srv.joints[1] = wam_pos[1]- 0.1 # Set these from previous joints
     joint_move_srv(srv)
 
 
